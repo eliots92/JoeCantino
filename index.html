@@ -816,12 +816,25 @@ function renderReportDetail(id){
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${v.phone?`<a class="btn sm" href="tel:${esc(v.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(v.phone)}">💬 Text</a>`:""}${v.email?`<a class="btn sm" href="mailto:${esc(v.email)}">✉️ Email</a>`:""}</div>
       <div class="small muted" style="margin-top:8px">${esc(v.phone||"")}${v.email?` · ${esc(v.email)}`:""}</div></div>`).join("");
   }
+  const sub=r.subcontractor||{name:"",cost:""};
+  html+=`<div class="sec"><h2>Contracted work</h2></div>
+    <div class="card">
+      <div class="small muted" style="margin-bottom:8px">If you subbed this job out, record who did it and what they charged you — it flows into the invoice as a “Subcontractor” line.</div>
+      <label class="field" style="margin-top:0">Vendor / who did the work</label>
+      <input class="inp" id="sub-name" list="sub-dl" value="${esc(sub.name)}" placeholder="e.g. Bradshaw HVAC">
+      ${vends.length?`<datalist id="sub-dl">${vends.map(v=>`<option value="${esc(v.name)}">`).join("")}</datalist>`:""}
+      <label class="field">What they charged you ($)</label>
+      <input class="inp" id="sub-cost" type="number" inputmode="decimal" value="${esc(sub.cost)}" placeholder="0.00">
+    </div>`;
   if(r.invoiceId) html+=`<div class="card"><div class="row" style="align-items:center"><div style="flex:1;font-weight:700">Invoice created</div><a class="btn sm primary" href="#invoice/${r.invoiceId}">View →</a></div></div>`;
   app.innerHTML=html;
   document.body.style.paddingBottom="100px";
   document.getElementById("actionbar-slot").innerHTML=`<div class="actionbar"><div class="wrap"><button class="btn primary block" id="build-inv">🧾 Build invoice from this</button></div></div>`;
   $("#build-inv").addEventListener("click",()=>navigate("#invoice/new?from="+r.id));
   $("#detail-status").addEventListener("change",e=>updateReport(r.id,{status:e.target.value}));
+  const saveSub=()=>{ const name=($("#sub-name").value||"").trim(); const cv=($("#sub-cost").value||"").trim();
+    updateReport(r.id,{subcontractor:(name||cv)?{name, cost:cv===""?"":Number(cv)}:null}); };
+  ["sub-name","sub-cost"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("change",saveSub); });
   document.querySelectorAll("[data-full]").forEach(img=>img.addEventListener("click",()=>showImage(img.dataset.full)));
 }
 function showImage(src){ const slot=document.getElementById("modal-slot"); slot.innerHTML=`<div class="overlay" id="imgov"><img src="${src}"></div>`; $("#imgov").addEventListener("click",()=>slot.innerHTML=""); }
@@ -858,7 +871,12 @@ function newInvoiceFrom(reportId){
     const r=st.reports.find(x=>x.id===reportId);
     if(r){ inv.propertyId=r.location.property;
       const pr=propById(r.location.property);
-      inv.items=[{desc:r.autoSummary, qty:1, price:pr?pr.rate:75}];
+      const sub=r.subcontractor;
+      if(sub && Number(sub.cost)>0){
+        inv.items=[{desc:"Subcontractor — "+(sub.name||"vendor")+" ("+r.portalName+")", qty:1, price:Number(sub.cost)}];
+      } else {
+        inv.items=[{desc:r.autoSummary, qty:1, price:pr?pr.rate:75}];
+      }
       if(pr && pr.travel) inv.items.push({desc:"Travel", qty:1, price:pr.travel});
     }
   }
@@ -903,6 +921,7 @@ function paintInvoice(){
   <div class="quickadd">
     <button class="btn sm" data-add="labor">+ Labor (1 hr · $${rate})</button>
     ${travel?`<button class="btn sm" data-add="travel">+ Travel ($${travel})</button>`:""}
+    <button class="btn sm" data-add="subcontractor">+ Subcontractor</button>
     <button class="btn sm" data-add="materials">+ Materials</button>
     <button class="btn sm" data-add="blank">+ Blank line</button>
   </div>
@@ -949,6 +968,7 @@ function paintInvoice(){
     const k=b.dataset.add;
     if(k==="labor") editInv.items.push({desc:"Labor",qty:1,price:rate});
     else if(k==="travel") editInv.items.push({desc:"Travel",qty:1,price:travel});
+    else if(k==="subcontractor") editInv.items.push({desc:"Subcontractor",qty:1,price:0});
     else if(k==="materials") editInv.items.push({desc:"Materials",qty:1,price:0});
     else editInv.items.push({desc:"",qty:1,price:0});
     paintInvoice();
