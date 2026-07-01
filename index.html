@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16333D">
-<title>Catino Services — Field Reporting</title>
+<title>My Portal — Field Reporting</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
@@ -242,8 +242,8 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 <body>
 
 <div class="topbar"><div class="wrap">
-  <button class="logo" id="hlogo" title="Home" aria-label="Catino Services — go to home">C<b>S</b></button>
-  <div class="brand" id="brand-home" role="button" tabindex="0" title="Home">Catino Services<small>Field reporting</small></div>
+  <button class="logo" id="hlogo" title="Home" aria-label="My Portal — go to home">M<b>P</b></button>
+  <div class="brand" id="brand-home" role="button" tabindex="0" title="Home">My Portal<small>Field reporting</small></div>
   <div class="spacer"></div>
   <button class="hbtn" id="report-btn">+ Report</button>
 </div></div>
@@ -266,10 +266,10 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 
 <script>
 "use strict";
-// Logo image removed — the "CS" monogram is drawn in CSS from the brand colors (.logo).
+// Logo image removed — the "MP" monogram is drawn in CSS from the brand colors (.logo).
 
 /* ============================================================================
-   EDITABLE CONFIG — real Catino Services data. Change anything here.
+   EDITABLE CONFIG — real My Portal data. Change anything here.
    ========================================================================== */
 const PIN_CODE = "4826";
 const USE_PIN  = false;
@@ -306,13 +306,13 @@ const VENDORS = [
 ];
 
 const BUSINESS = {
-  name:"Catino Services",
+  name:"My Portal",
   person:"",
   address:"4716 Tangelwood Drive, Nashville, TN 37216",
   phone:"617-633-8949",
   email:"j1catino@outlook.com",
-  payableTo:"Catino Services",
-  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services. Preferred: ACH / Direct Deposit or Check.",
+  payableTo:"My Portal",
+  defaultNotes:"Payment due within 15 days (Net-15). Make payable to My Portal. Preferred: ACH / Direct Deposit or Check.",
   defaultTaxPct:0,
   invoiceStart:204            // last real invoice was #203
 };
@@ -994,7 +994,7 @@ function paintInvoice(){
   const rate = pr?pr.rate:75, travel = pr?pr.travel:0;
 
   let html=`<div class="sec"><a class="linkbtn" href="#invoices">‹ Invoices</a></div>
-  <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">C<b>S</b></span>
+  <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">M<b>P</b></span>
     <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc([BUSINESS.person,BUSINESS.phone].filter(Boolean).join(" · "))}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
     <div class="itemrow" style="grid-template-columns:1fr 1fr;margin-top:12px">
       <div><label class="field" style="margin-top:0">Invoice #</label><input class="inp" id="inv-num" value="${esc(inv.number)}"></div>
@@ -1131,8 +1131,8 @@ function exportPDF(){
 function requirePin(cb){
   if(!USE_PIN||!PIN_CODE) return cb();
   const slot=document.getElementById("modal-slot");
-  slot.innerHTML=`<div class="overlay"><div class="pin-box"><span class="logo" style="width:52px;height:52px;border-radius:13px;font-size:22px;margin:0 auto 10px">C<b>S</b></span>
-    <div style="font-weight:800;font-size:18px">Catino Services</div><div class="small muted" style="margin:4px 0 14px">Enter PIN</div>
+  slot.innerHTML=`<div class="overlay"><div class="pin-box"><span class="logo" style="width:52px;height:52px;border-radius:13px;font-size:22px;margin:0 auto 10px">M<b>P</b></span>
+    <div style="font-weight:800;font-size:18px">My Portal</div><div class="small muted" style="margin:4px 0 14px">Enter PIN</div>
     <input class="inp" id="pin-in" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
     <div id="pin-err" class="small" style="color:var(--emergency);height:18px;margin:6px 0"></div>
     <button class="btn primary block" id="pin-go">Unlock</button></div></div>`;
