@@ -187,7 +187,7 @@ textarea.inp{min-height:110px;resize:vertical}
 <div class="wrap" id="app"></div>
 
 <div class="tabbar" id="tabbar"><div class="wrap">
-  <button class="tab" data-nav="#home"><span class="ic">🛠️</span>Report</button>
+  <button class="tab" data-nav="#welcome"><span class="ic">🛠️</span>Report</button>
   <button class="tab" data-nav="#reports"><span class="ic">📋</span>Reports</button>
   <button class="tab" data-nav="#invoices"><span class="ic">🧾</span>Invoices</button>
 </div></div>
@@ -211,8 +211,7 @@ const PROPERTIES = [
   { id:"ham-640",  label:"640 Hamilton Ave",      rate:75,  travel:25 },
   { id:"ham-642",  label:"642 Hamilton Ave",      rate:75,  travel:25 },
   { id:"ham-646",  label:"646 Hamilton Ave",      rate:75,  travel:25 },
-  { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 },
-  { id:"ham-644",  label:"644 Hamilton Ave (owner)", rate:50, travel:0 }
+  { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 }
 ];
 
 const BUSINESS = {
@@ -355,20 +354,71 @@ function route(){
   clearBars();
   const h = location.hash || "#home";
   const [base, arg] = h.replace(/^#/,"").split("/");
-  if(base==="funnel"){ if(!F || F.portal.id!==arg) startFunnel(arg); else renderFunnel(); setTab("#home"); return; }
+  if(base==="funnel"){ if(!F || F.portal.id!==arg) startFunnel(arg); else renderFunnel(); setTab("#welcome"); return; }
   F = null; document.body.style.paddingBottom="88px";
-  if(base==="reports"){ setTab("#reports"); renderReports(); }
+  // Hide the "At [property]" bar on the guided entry screens — property is chosen there.
+  const wb=document.querySelector(".workbar"); if(wb) wb.style.display=(base==="welcome"||base==="where")?"none":"";
+  if(base==="welcome"){ homeCategory=""; setTab("#welcome"); renderWelcome(); }
+  else if(base==="where"){ setTab("#welcome"); renderWhere(arg); }
+  else if(base==="reports"){ setTab("#reports"); renderReports(); }
   else if(base==="report"){ setTab("#reports"); renderReportDetail(arg); }
   else if(base==="invoices"){ setTab("#invoices"); renderInvoices(); }
   else if(base==="invoice"){ const [invId,qs]=(arg||"").split("?"); const from=new URLSearchParams(qs||"").get("from"); setTab("#invoices"); renderInvoiceBuilder(invId==="new"?null:invId, invId==="new"?from:null); }
-  else { setTab("#home"); renderHome(); }
+  else { setTab("#welcome"); renderHome(); }
   window.scrollTo(0,0);
+}
+
+/* ============================================================================
+   WELCOME → WHERE (guided entry: category, then property)
+   ========================================================================== */
+function renderWelcome(){
+  homeCategory="";
+  let html=`<div style="margin:26px 2px 6px">
+      <h1 style="font-size:27px;font-weight:800;letter-spacing:-.5px">Hi there 👋</h1>
+      <div style="font-size:20px;font-weight:700;margin-top:4px">What's going on today?</div>
+      <div class="small muted" style="margin-top:6px">Pick the kind of issue — we'll ask where next.</div>
+    </div>
+    <div class="grid" style="margin-top:16px">`;
+  GROUPS.forEach(g=>{
+    const cls=g.id==="safety"?"tile emergency-tile":"tile";
+    const n=PORTALS.filter(p=>p.group===g.id).length;
+    html+=`<button class="${cls}" data-cat="${g.id}" style="border-top-color:${g.color}">
+      <span class="pname">${esc(g.name)}</span>
+      <span class="pmeta">${n} option${n===1?"":"s"}</span></button>`;
+  });
+  html+=`</div>`;
+  app.innerHTML=html;
+  document.querySelectorAll("[data-cat]").forEach(b=>b.addEventListener("click",()=>navigate("#where/"+b.dataset.cat)));
+}
+function renderWhere(catId){
+  const g=groupById(catId); if(!g){ navigate("#welcome"); return; }
+  let html=`<div class="sec"><a class="linkbtn" href="#welcome">‹ Back</a></div>
+    <div style="margin:8px 2px 6px">
+      <div class="row" style="align-items:center;gap:10px">
+        <span class="dot" style="background:${g.color};width:15px;height:15px"></span>
+        <h1 style="font-size:22px;font-weight:800">${esc(g.name)}</h1></div>
+      <div style="font-size:19px;font-weight:700;margin-top:12px">Where is this happening?</div>
+      <div class="small muted" style="margin-top:4px">Tap the property.</div>
+    </div>
+    <div class="opts" style="margin-top:14px">`;
+  PROPERTIES.forEach(p=>{
+    html+=`<button class="opt round" data-prop="${p.id}"><span>📍</span><span>${esc(p.label)}</span></button>`;
+  });
+  html+=`</div>`;
+  app.innerHTML=html;
+  document.querySelectorAll("[data-prop]").forEach(b=>b.addEventListener("click",()=>{
+    currentProperty=b.dataset.prop;
+    const sel=document.getElementById("workprop"); if(sel) sel.value=currentProperty;
+    homeCategory=catId;
+    navigate("#home");
+  }));
 }
 
 /* ============================================================================
    HOME
    ========================================================================== */
 let homeQuery="";
+let homeCategory="";     // when set, home is scoped to one category (search overrides it)
 function renderHome(){
   const reports = store.get().reports;
   const counts={}; reports.forEach(r=>counts[r.portal]=(counts[r.portal]||0)+1);
@@ -379,10 +429,20 @@ function renderHome(){
   let html=`<input class="search" id="portal-search" placeholder="Search — leak, door, roof…" value="${esc(homeQuery)}" autocomplete="off">
     <div class="small muted" style="margin:0 2px 6px">Tap what happened. One tap per question — most reports take 20 seconds.</div>`;
 
-  if(!q && mostUsed.length){
+  if(homeCategory){
+    const cg=groupById(homeCategory);
+    html+=`<div class="card lc" style="border-left-color:${cg.color};display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dot" style="background:${cg.color}"></span>
+      <div style="flex:1;min-width:0"><div style="font-weight:750">${esc(cg.name)}</div>
+      <div class="small muted">at ${esc(propLabel(currentProperty))}</div></div>
+      <a class="linkbtn" href="#welcome">Change</a></div>`;
+  }
+
+  if(!q && !homeCategory && mostUsed.length){
     html+=`<div class="sec"><h2>Your most-used</h2></div><div class="grid">${mostUsed.map(tileHtml).join("")}</div>`;
   }
   GROUPS.forEach(g=>{
+    if(homeCategory && !q && g.id!==homeCategory) return;  // scoped view; a search query overrides the scope
     const items=PORTALS.filter(p=>p.group===g.id && match(p));
     if(!items.length) return;
     html+=`<div class="sec"><span class="dot" style="background:${g.color}"></span><h2>${esc(g.name)}</h2></div>`;
@@ -935,13 +995,15 @@ function paintWorkProp(){
   sel.innerHTML=PROPERTIES.map(p=>`<option value="${p.id}" ${currentProperty===p.id?'selected':''}>${esc(p.label)}</option>`).join("");
   sel.addEventListener("change",()=>{ currentProperty=sel.value; });
 }
-document.getElementById("report-btn").addEventListener("click",()=>{ navigate("#home"); setTimeout(()=>{ const s=$("#portal-search"); if(s) s.focus(); },30); });
+document.getElementById("report-btn").addEventListener("click",()=>navigate("#welcome"));
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>navigate(t.dataset.nav)));
 
 requirePin(()=>{
   paintWorkProp();
   const deep=getParam("portal");
-  if(deep && portalById(deep)) navigate("#funnel/"+deep); else route();
+  if(deep && portalById(deep)) navigate("#funnel/"+deep);
+  else if(!location.hash || location.hash==="#home") navigate("#welcome");
+  else route();
 });
 </script>
 </body>
