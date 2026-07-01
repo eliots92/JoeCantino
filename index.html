@@ -276,11 +276,12 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 const PIN_CODE = "SilverStar321!";
 const USE_PIN  = true;
 
-/* Formspree — every saved report and sent invoice is POSTed here so there's a
-   durable, emailed record. Paste your form endpoint from formspree.io
-   (looks like https://formspree.io/f/abcdwxyz). Leave the XXXX placeholder and
-   nothing is sent — the app still works fully on-device. */
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/xojokkkl";
+/* Formspree — saved reports and sent invoices are POSTed to separate forms so
+   there's a durable, emailed record. Paste your form endpoints from formspree.io
+   (each looks like https://formspree.io/f/abcdwxyz). Leave an XXXX placeholder
+   and that type isn't sent — the app still works fully on-device. */
+const FORMSPREE_REPORTS  = "https://formspree.io/f/mjgqaald";   // Maintenance Reports
+const FORMSPREE_INVOICES = "https://formspree.io/f/mlgyppve";   // Maintenance Invoices
 
 /* Properties carry the real per-property hourly + travel rates (rate sheet, Jun 2026). */
 const PROPERTIES = [
@@ -423,13 +424,13 @@ const store = { get(){ return AppState; }, set(n){ AppState = n; } };
 
 function track(event, payload){ try{ (window.__tracklog=window.__tracklog||[]).push({event,payload,t:Date.now()}); }catch(e){} }
 
-/* Formspree: fire-and-forget POST. Never blocks the UI; failures are swallowed
-   so the app keeps working offline / if the endpoint isn't set yet. */
-function formspreeEnabled(){ return FORMSPREE_ENDPOINT && !/XXXX/.test(FORMSPREE_ENDPOINT); }
-function sendToFormspree(payload){
-  if(!formspreeEnabled()) return;
+/* Formspree: fire-and-forget POST to a given form endpoint. Never blocks the UI;
+   failures are swallowed so the app keeps working offline / if unset. */
+function formspreeEnabled(ep){ return ep && !/XXXX/.test(ep); }
+function sendToFormspree(payload, endpoint){
+  if(!formspreeEnabled(endpoint)) return;
   try{
-    fetch(FORMSPREE_ENDPOINT, { method:"POST",
+    fetch(endpoint, { method:"POST",
       headers:{ "Content-Type":"application/json", "Accept":"application/json" },
       body: JSON.stringify(payload) }).catch(()=>{});
   }catch(e){}
@@ -441,19 +442,19 @@ function dataURLtoBlob(dataurl){
   for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new Blob([arr],{type:mime});
 }
-/* Reports go as multipart when they carry photos, so the images attach to the
-   Formspree submission (paid plan). Falls back to plain JSON otherwise. */
+/* Reports → the Maintenance Reports form. Multipart when they carry photos so the
+   images attach (paid plan); plain JSON otherwise. */
 function sendReport(r){
-  if(!formspreeEnabled()) return;
+  if(!formspreeEnabled(FORMSPREE_REPORTS)) return;
   const fields=reportPayload(r), photos=r.photos||[];
-  if(!photos.length){ sendToFormspree(fields); return; }
+  if(!photos.length){ sendToFormspree(fields, FORMSPREE_REPORTS); return; }
   try{
     const fd=new FormData();
     Object.entries(fields).forEach(([k,v])=>fd.append(k, typeof v==="boolean"?(v?"Yes":"No"):String(v)));
     photos.forEach((p,i)=>{ try{ const b=dataURLtoBlob(p); const ext=((b.type.split("/")[1])||"jpg").replace("jpeg","jpg");
       fd.append("photo"+(i+1), b, `report-${r.id}-${i+1}.${ext}`); }catch(e){} });
-    fetch(FORMSPREE_ENDPOINT, { method:"POST", headers:{ "Accept":"application/json" }, body:fd }).catch(()=>{});
-  }catch(e){ sendToFormspree(fields); }
+    fetch(FORMSPREE_REPORTS, { method:"POST", headers:{ "Accept":"application/json" }, body:fd }).catch(()=>{});
+  }catch(e){ sendToFormspree(fields, FORMSPREE_REPORTS); }
 }
 function reportPayload(r){
   return {
@@ -1183,7 +1184,7 @@ function persistInvoice(){
 function markSent(){
   editInv.status="sent"; persistInvoice();
   if(editInv.reportId){ const st=store.get(); const r=st.reports.find(x=>x.id===editInv.reportId); if(r){ r.status="quoted"; store.set(st); } }
-  sendToFormspree(invoicePayload(editInv));
+  sendToFormspree(invoicePayload(editInv), FORMSPREE_INVOICES);
   alert("Marked sent. Linked report set to “quoted.”"); navigate("#invoice/"+editInv.id);
 }
 function exportPDF(){
