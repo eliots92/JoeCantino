@@ -432,6 +432,27 @@ function sendToFormspree(payload){
       body: JSON.stringify(payload) }).catch(()=>{});
   }catch(e){}
 }
+function dataURLtoBlob(dataurl){
+  const c=dataurl.indexOf(","); const head=dataurl.slice(0,c);
+  const mime=(head.match(/data:(.*?);/)||[])[1]||"image/jpeg";
+  const bin=atob(dataurl.slice(c+1)); const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+/* Reports go as multipart when they carry photos, so the images attach to the
+   Formspree submission (paid plan). Falls back to plain JSON otherwise. */
+function sendReport(r){
+  if(!formspreeEnabled()) return;
+  const fields=reportPayload(r), photos=r.photos||[];
+  if(!photos.length){ sendToFormspree(fields); return; }
+  try{
+    const fd=new FormData();
+    Object.entries(fields).forEach(([k,v])=>fd.append(k, typeof v==="boolean"?(v?"Yes":"No"):String(v)));
+    photos.forEach((p,i)=>{ try{ const b=dataURLtoBlob(p); const ext=((b.type.split("/")[1])||"jpg").replace("jpeg","jpg");
+      fd.append("photo"+(i+1), b, `report-${r.id}-${i+1}.${ext}`); }catch(e){} });
+    fetch(FORMSPREE_ENDPOINT, { method:"POST", headers:{ "Accept":"application/json" }, body:fd }).catch(()=>{});
+  }catch(e){ sendToFormspree(fields); }
+}
 function reportPayload(r){
   return {
     _subject: `New report — ${r.portalName} @ ${propLabel(r.location.property)||"—"}`,
@@ -849,7 +870,7 @@ function saveReport(){
   const r=draftReport(); r.id=uid("r"); r.autoSummary=buildAutoSummary(r,F.portal);
   const st=store.get(); st.reports.push(r); store.set(st);
   track("report_saved",{id:r.id,portal:r.portal,urgency:r.urgency,hazard:r.hazard,photos:r.photos.length});
-  sendToFormspree(reportPayload(r));
+  sendReport(r);
   F=null; celebrateSave(()=>navigate("#report/"+r.id));
 }
 const CELEB=[
