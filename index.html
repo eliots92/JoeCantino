@@ -27,8 +27,12 @@ a{color:var(--ink)}
 /* Header */
 .topbar{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff}
 .topbar .wrap{display:flex;align-items:center;gap:12px;height:60px}
-.logo{width:36px;height:36px;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-1px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.logo{width:36px;height:36px;border:0;padding:0;font-family:inherit;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-1px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
 .logo b{color:var(--sage);font-weight:800}
+/* Top-bar logo + brand act as a "home" button with a comfortable tap target */
+#hlogo{width:40px;height:40px;cursor:pointer}
+#brand-home{cursor:pointer;background:none;border:0;color:inherit;-webkit-tap-highlight-color:transparent}
+#hlogo:active,#brand-home:active{opacity:.65}
 .brand{font-weight:800;font-size:16px;letter-spacing:.2px;line-height:1.1}
 .brand small{display:block;font-weight:500;color:#a9c4b6;font-size:11px;letter-spacing:.4px;margin-top:1px}
 .spacer{flex:1}
@@ -173,8 +177,8 @@ textarea.inp{min-height:110px;resize:vertical}
 <body>
 
 <div class="topbar"><div class="wrap">
-  <span class="logo" id="hlogo" aria-label="Catino Services">C<b>S</b></span>
-  <div class="brand">Catino Services<small>Field reporting</small></div>
+  <button class="logo" id="hlogo" title="Home" aria-label="Catino Services — go to home">C<b>S</b></button>
+  <div class="brand" id="brand-home" role="button" tabindex="0" title="Home">Catino Services<small>Field reporting</small></div>
   <div class="spacer"></div>
   <button class="hbtn" id="report-btn">+ Report</button>
 </div></div>
@@ -1051,6 +1055,11 @@ function paintWorkProp(){
   sel.addEventListener("change",()=>{ currentProperty=sel.value; });
 }
 document.getElementById("report-btn").addEventListener("click",()=>navigate("#welcome"));
+// Logo + brand → home (welcome). Keyboard-activatable for the div-based brand.
+["hlogo","brand-home"].forEach(id=>{ const el=document.getElementById(id); if(!el) return;
+  el.addEventListener("click",()=>navigate("#welcome"));
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); navigate("#welcome"); } });
+});
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>navigate(t.dataset.nav)));
 
 requirePin(()=>{
