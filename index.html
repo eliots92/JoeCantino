@@ -187,7 +187,7 @@ textarea.inp{min-height:110px;resize:vertical}
 <div class="wrap" id="app"></div>
 
 <div class="tabbar" id="tabbar"><div class="wrap">
-  <button class="tab" data-nav="#home"><span class="ic">🛠️</span>Report</button>
+  <button class="tab" data-nav="#welcome"><span class="ic">🛠️</span>Report</button>
   <button class="tab" data-nav="#reports"><span class="ic">📋</span>Reports</button>
   <button class="tab" data-nav="#invoices"><span class="ic">🧾</span>Invoices</button>
 </div></div>
@@ -205,24 +205,48 @@ textarea.inp{min-height:110px;resize:vertical}
 const PIN_CODE = "4826";
 const USE_PIN  = false;
 
-/* Properties carry Joe's real per-property hourly + travel rates (rate sheet, Jun 2026). */
+/* Properties carry the real per-property hourly + travel rates (rate sheet, Jun 2026). */
 const PROPERTIES = [
   { id:"2nd-1051", label:"1051 2nd Ave S",        rate:100, travel:25 },
   { id:"ham-640",  label:"640 Hamilton Ave",      rate:75,  travel:25 },
   { id:"ham-642",  label:"642 Hamilton Ave",      rate:75,  travel:25 },
   { id:"ham-646",  label:"646 Hamilton Ave",      rate:75,  travel:25 },
-  { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 },
-  { id:"ham-644",  label:"644 Hamilton Ave (owner)", rate:50, travel:0 }
+  { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 }
+];
+
+/* Service areas map each vendor's coverage to the app's properties.
+   Thompson's Station is grouped with the Franklin vendors (nearest coverage). */
+const SERVICE_AREAS = {
+  all:      ["2nd-1051","ham-640","ham-642","ham-646","thompson"],
+  weho:     ["2nd-1051","ham-640","ham-642","ham-646"],  // Wedgewood-Houston (Nashville)
+  franklin: ["thompson"]
+};
+
+/* Vendor directory (from Tenant Summary v3). A vendor shows on a report when the
+   report's issue (portal id) or broad category (group id) matches AND the vendor's
+   service area covers the report's property. Joe's own trades (handyman, WeHo
+   plumbing, unit turns) are intentionally omitted — he does those himself. Add,
+   edit, or extend `portals`/`areas` here; tap-to-call/text/email is automatic. */
+const VENDORS = [
+  { id:"v-manny-plumb",    name:"Manuel Velasquez",        trade:"Plumber",      contact:"Manny Velasquez", phone:"(615) 498-9911", email:"Marlonvelasquez25@gmail.com",        portals:["plumbing","water-heater"], areas:["franklin"] },
+  { id:"v-precision-plumb",name:"Precision Plumbing",       trade:"Plumber",                                phone:"(615) 876-8603", email:"info@precisionplumbingcompany.com",  portals:["plumbing","water-heater"], areas:["franklin"] },
+  { id:"v-xae-elec",       name:"XAE Electrical",           trade:"Electrician",  contact:"Jeovany Velasquez", phone:"(404) 825-6541", email:"Xaeelectrical@gmail.com",          portals:["electrical","power-outage"], areas:["all"] },
+  { id:"v-bradshaw-hvac",  name:"Bradshaw HVAC",            trade:"HVAC",                                   phone:"(615) 642-6529", email:"bradshawhvac71@yahoo.com",           portals:["hvac"], areas:["weho"] },
+  { id:"v-misaclean",      name:"Misaclean",                trade:"Cleaner",      contact:"Michelle Ramirez", phone:"(615) 473-9257", email:"michelleramirezd.01@gmail.com",     portals:["cleaning"], areas:["all"] },
+  { id:"v-discovery-pest", name:"Discovery Pest Solutions", trade:"Pest Control", contact:"Jimmy Keeling",  phone:"(615) 663-0193", email:"discoverypestsolutions@outlook.com", portals:["pest"], areas:["all"] },
+  { id:"v-outright-septic",name:"Outright Septic",          trade:"Septic",       contact:"Matt",           phone:"(615) 558-8144", email:"hello@outrightseptic.com",           portals:["sewer-septic"], areas:["franklin"] },
+  { id:"v-allied-garage",  name:"Allied Overhead Door",     trade:"Garage Door",                            phone:"(615) 237-7724", email:"",                                   portals:["garage-door"], areas:["weho"] },
+  { id:"v-hawkins-land",   name:"Newman Hawkins",           trade:"Landscaper",   contact:"Newman Hawkins", phone:"(615) 573-2089", email:"nhawkins21@gmail.com",               portals:["landscaping","trees"], areas:["weho"] }
 ];
 
 const BUSINESS = {
   name:"Catino Services",
-  person:"Joe Catino",
+  person:"",
   address:"4716 Tangelwood Drive, Nashville, TN 37216",
   phone:"617-633-8949",
   email:"j1catino@outlook.com",
-  payableTo:"Catino Services / Joe Catino",
-  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services / Joe Catino. Preferred: ACH / Direct Deposit or Check.",
+  payableTo:"Catino Services",
+  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services. Preferred: ACH / Direct Deposit or Check.",
   defaultTaxPct:0,
   invoiceStart:204            // last real invoice was #203
 };
@@ -332,6 +356,10 @@ const URG = { routine:0, soon:1, urgent:2, emergency:3 };
 const groupById = id => GROUPS.find(g=>g.id===id);
 const portalById = id => PORTALS.find(p=>p.id===id);
 const propById = id => PROPERTIES.find(p=>p.id===id);
+const vendorServesProperty = (v,propId) => !v.areas || v.areas.some(a=>(SERVICE_AREAS[a]||[]).includes(propId));
+const vendorsForReport = r => VENDORS.filter(v=>
+  ((v.portals && v.portals.includes(r.portal)) || (v.categories && v.categories.includes(r.category)))
+  && vendorServesProperty(v, r.location.property));
 const propLabel = id => (propById(id)||{}).label || id || "";
 function uid(p){ return p+"_"+Math.random().toString(36).slice(2,9); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -355,20 +383,71 @@ function route(){
   clearBars();
   const h = location.hash || "#home";
   const [base, arg] = h.replace(/^#/,"").split("/");
-  if(base==="funnel"){ if(!F || F.portal.id!==arg) startFunnel(arg); else renderFunnel(); setTab("#home"); return; }
+  if(base==="funnel"){ if(!F || F.portal.id!==arg) startFunnel(arg); else renderFunnel(); setTab("#welcome"); return; }
   F = null; document.body.style.paddingBottom="88px";
-  if(base==="reports"){ setTab("#reports"); renderReports(); }
+  // Hide the "At [property]" bar on the guided entry screens — property is chosen there.
+  const wb=document.querySelector(".workbar"); if(wb) wb.style.display=(base==="welcome"||base==="where")?"none":"";
+  if(base==="welcome"){ homeCategory=""; setTab("#welcome"); renderWelcome(); }
+  else if(base==="where"){ setTab("#welcome"); renderWhere(arg); }
+  else if(base==="reports"){ setTab("#reports"); renderReports(); }
   else if(base==="report"){ setTab("#reports"); renderReportDetail(arg); }
   else if(base==="invoices"){ setTab("#invoices"); renderInvoices(); }
   else if(base==="invoice"){ const [invId,qs]=(arg||"").split("?"); const from=new URLSearchParams(qs||"").get("from"); setTab("#invoices"); renderInvoiceBuilder(invId==="new"?null:invId, invId==="new"?from:null); }
-  else { setTab("#home"); renderHome(); }
+  else { setTab("#welcome"); renderHome(); }
   window.scrollTo(0,0);
+}
+
+/* ============================================================================
+   WELCOME → WHERE (guided entry: category, then property)
+   ========================================================================== */
+function renderWelcome(){
+  homeCategory="";
+  let html=`<div style="margin:26px 2px 6px">
+      <h1 style="font-size:27px;font-weight:800;letter-spacing:-.5px">Hi there 👋</h1>
+      <div style="font-size:20px;font-weight:700;margin-top:4px">What's going on today?</div>
+      <div class="small muted" style="margin-top:6px">Pick the kind of issue — we'll ask where next.</div>
+    </div>
+    <div class="grid" style="margin-top:16px">`;
+  GROUPS.forEach(g=>{
+    const cls=g.id==="safety"?"tile emergency-tile":"tile";
+    const n=PORTALS.filter(p=>p.group===g.id).length;
+    html+=`<button class="${cls}" data-cat="${g.id}" style="border-top-color:${g.color}">
+      <span class="pname">${esc(g.name)}</span>
+      <span class="pmeta">${n} option${n===1?"":"s"}</span></button>`;
+  });
+  html+=`</div>`;
+  app.innerHTML=html;
+  document.querySelectorAll("[data-cat]").forEach(b=>b.addEventListener("click",()=>navigate("#where/"+b.dataset.cat)));
+}
+function renderWhere(catId){
+  const g=groupById(catId); if(!g){ navigate("#welcome"); return; }
+  let html=`<div class="sec"><a class="linkbtn" href="#welcome">‹ Back</a></div>
+    <div style="margin:8px 2px 6px">
+      <div class="row" style="align-items:center;gap:10px">
+        <span class="dot" style="background:${g.color};width:15px;height:15px"></span>
+        <h1 style="font-size:22px;font-weight:800">${esc(g.name)}</h1></div>
+      <div style="font-size:19px;font-weight:700;margin-top:12px">Where is this happening?</div>
+      <div class="small muted" style="margin-top:4px">Tap the property.</div>
+    </div>
+    <div class="opts" style="margin-top:14px">`;
+  PROPERTIES.forEach(p=>{
+    html+=`<button class="opt round" data-prop="${p.id}"><span>📍</span><span>${esc(p.label)}</span></button>`;
+  });
+  html+=`</div>`;
+  app.innerHTML=html;
+  document.querySelectorAll("[data-prop]").forEach(b=>b.addEventListener("click",()=>{
+    currentProperty=b.dataset.prop;
+    const sel=document.getElementById("workprop"); if(sel) sel.value=currentProperty;
+    homeCategory=catId;
+    navigate("#home");
+  }));
 }
 
 /* ============================================================================
    HOME
    ========================================================================== */
 let homeQuery="";
+let homeCategory="";     // when set, home is scoped to one category (search overrides it)
 function renderHome(){
   const reports = store.get().reports;
   const counts={}; reports.forEach(r=>counts[r.portal]=(counts[r.portal]||0)+1);
@@ -379,10 +458,20 @@ function renderHome(){
   let html=`<input class="search" id="portal-search" placeholder="Search — leak, door, roof…" value="${esc(homeQuery)}" autocomplete="off">
     <div class="small muted" style="margin:0 2px 6px">Tap what happened. One tap per question — most reports take 20 seconds.</div>`;
 
-  if(!q && mostUsed.length){
+  if(homeCategory){
+    const cg=groupById(homeCategory);
+    html+=`<div class="card lc" style="border-left-color:${cg.color};display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dot" style="background:${cg.color}"></span>
+      <div style="flex:1;min-width:0"><div style="font-weight:750">${esc(cg.name)}</div>
+      <div class="small muted">at ${esc(propLabel(currentProperty))}</div></div>
+      <a class="linkbtn" href="#welcome">Change</a></div>`;
+  }
+
+  if(!q && !homeCategory && mostUsed.length){
     html+=`<div class="sec"><h2>Your most-used</h2></div><div class="grid">${mostUsed.map(tileHtml).join("")}</div>`;
   }
   GROUPS.forEach(g=>{
+    if(homeCategory && !q && g.id!==homeCategory) return;  // scoped view; a search query overrides the scope
     const items=PORTALS.filter(p=>p.group===g.id && match(p));
     if(!items.length) return;
     html+=`<div class="sec"><span class="dot" style="background:${g.color}"></span><h2>${esc(g.name)}</h2></div>`;
@@ -552,7 +641,7 @@ function wireStep(step){
       c.answers[step.q]=r.value;
       app.querySelectorAll(".opt").forEach(o=>{const on=o.querySelector("input").checked;o.classList.toggle("on",on);const k=o.querySelector(".chk");if(k)k.textContent=on?'✓':'';});
       const b=$("#safebanner"); if(b) b.classList.toggle("hide", r.value!=="Yes");
-      // "No" auto-advances; "Yes" pauses so Joe reads the safety banner
+      // "No" auto-advances; "Yes" pauses so the user reads the safety banner
       if(r.value==="No"){ setTimeout(()=>{ if(collectStep(step)) advance(); },160); }
       else { showNext(); }
     }));
@@ -721,6 +810,15 @@ function renderReportDetail(id){
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${a.phone?`<a class="btn sm" href="tel:${esc(a.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(a.phone)}">💬 Text</a>`:""}${a.email?`<a class="btn sm" href="mailto:${esc(a.email)}">✉️ Email</a>`:""}</div>
       <div class="small muted" style="margin-top:8px">${esc(a.phone)} ${a.email?"· "+esc(a.email):""}</div></div>`;
   }
+  const vends=vendorsForReport(r);
+  if(vends.length){
+    html+=`<div class="sec"><h2>Vendors to contact</h2></div>`+vends.map(v=>`<div class="card">
+      <div style="font-weight:750">${esc(v.name)}${v.trade?` <span class="muted small">· ${esc(v.trade)}</span>`:""}</div>
+      ${v.contact&&v.contact!==v.name?`<div class="small muted" style="margin-top:2px">${esc(v.contact)}</div>`:""}
+      ${v.note?`<div class="small muted" style="margin-top:2px">${esc(v.note)}</div>`:""}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${v.phone?`<a class="btn sm" href="tel:${esc(v.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(v.phone)}">💬 Text</a>`:""}${v.email?`<a class="btn sm" href="mailto:${esc(v.email)}">✉️ Email</a>`:""}</div>
+      <div class="small muted" style="margin-top:8px">${esc(v.phone||"")}${v.email?` · ${esc(v.email)}`:""}</div></div>`).join("");
+  }
   if(r.invoiceId) html+=`<div class="card"><div class="row" style="align-items:center"><div style="flex:1;font-weight:700">Invoice created</div><a class="btn sm primary" href="#invoice/${r.invoiceId}">View →</a></div></div>`;
   app.innerHTML=html;
   document.body.style.paddingBottom="100px";
@@ -786,7 +884,7 @@ function paintInvoice(){
 
   let html=`<div class="sec"><a class="linkbtn" href="#invoices">‹ Invoices</a></div>
   <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">C<b>S</b></span>
-    <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc(BUSINESS.person)} · ${esc(BUSINESS.phone)}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
+    <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc([BUSINESS.person,BUSINESS.phone].filter(Boolean).join(" · "))}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
     <div class="itemrow" style="grid-template-columns:1fr 1fr;margin-top:12px">
       <div><label class="field" style="margin-top:0">Invoice #</label><input class="inp" id="inv-num" value="${esc(inv.number)}"></div>
       <div><label class="field" style="margin-top:0">Status</label><select class="inp" id="inv-status">${["draft","sent","paid"].map(s=>`<option ${inv.status===s?'selected':''}>${s}</option>`).join("")}</select></div>
@@ -888,7 +986,7 @@ function exportPDF(){
   const inv=editInv; const M=48; let y=58;
   doc.setFontSize(20).setFont(undefined,"bold").text(BUSINESS.name,M,y);
   doc.setFontSize(10).setFont(undefined,"normal");
-  doc.text(BUSINESS.person,M,y+16); doc.text(BUSINESS.address,M,y+30); doc.text(BUSINESS.email+" | "+BUSINESS.phone,M,y+44);
+  let hy=y+16; [BUSINESS.person,BUSINESS.address,BUSINESS.email+" | "+BUSINESS.phone].filter(Boolean).forEach(l=>{ doc.text(l,M,hy); hy+=14; });
   doc.setFontSize(22).setFont(undefined,"bold").text("INVOICE",564,y,{align:"right"});
   doc.setFontSize(10).setFont(undefined,"normal");
   doc.text("#"+inv.number,564,y+18,{align:"right"});
@@ -935,13 +1033,15 @@ function paintWorkProp(){
   sel.innerHTML=PROPERTIES.map(p=>`<option value="${p.id}" ${currentProperty===p.id?'selected':''}>${esc(p.label)}</option>`).join("");
   sel.addEventListener("change",()=>{ currentProperty=sel.value; });
 }
-document.getElementById("report-btn").addEventListener("click",()=>{ navigate("#home"); setTimeout(()=>{ const s=$("#portal-search"); if(s) s.focus(); },30); });
+document.getElementById("report-btn").addEventListener("click",()=>navigate("#welcome"));
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>navigate(t.dataset.nav)));
 
 requirePin(()=>{
   paintWorkProp();
   const deep=getParam("portal");
-  if(deep && portalById(deep)) navigate("#funnel/"+deep); else route();
+  if(deep && portalById(deep)) navigate("#funnel/"+deep);
+  else if(!location.hash || location.hash==="#home") navigate("#welcome");
+  else route();
 });
 </script>
 </body>
