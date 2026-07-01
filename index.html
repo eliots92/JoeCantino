@@ -214,6 +214,19 @@ const PROPERTIES = [
   { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 }
 ];
 
+/* Vendors to route to when a report is filed. A vendor shows up on a report when
+   the report's specific issue (portal id, e.g. "plumbing") is in `portals`, OR the
+   report's broad category (group id, e.g. "building") is in `categories`.
+   Fill in real Nashville trade vendors below — name, trade, phone, email — and they
+   appear on matching reports with tap-to-call/text/email. Leave the array empty to
+   keep the feature hidden until you have vendors.
+     Portal ids:   plumbing, hvac, electrical, water-heater, appliances, roof-leak,
+                   pest, sewer-septic, cleaning, garage-door, trees, … (see PORTALS)
+     Category ids: safety, building, structure, exterior, sanitation, utilities */
+const VENDORS = [
+  // { id:"v-abc-plumbing", name:"ABC Plumbing", trade:"Plumbing", portals:["plumbing","water-heater","sewer-septic"], categories:[], phone:"615-555-0100", email:"dispatch@abcplumbing.com", note:"24/7 emergency" },
+];
+
 const BUSINESS = {
   name:"Catino Services",
   person:"",
@@ -331,6 +344,8 @@ const URG = { routine:0, soon:1, urgent:2, emergency:3 };
 const groupById = id => GROUPS.find(g=>g.id===id);
 const portalById = id => PORTALS.find(p=>p.id===id);
 const propById = id => PROPERTIES.find(p=>p.id===id);
+const vendorsForReport = r => VENDORS.filter(v=>
+  (v.portals && v.portals.includes(r.portal)) || (v.categories && v.categories.includes(r.category)));
 const propLabel = id => (propById(id)||{}).label || id || "";
 function uid(p){ return p+"_"+Math.random().toString(36).slice(2,9); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -780,6 +795,14 @@ function renderReportDetail(id){
     html+=`<div class="sec"><h2>Tenant / contact</h2></div><div class="card"><div style="font-weight:750">${esc(a.name)||"—"}</div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${a.phone?`<a class="btn sm" href="tel:${esc(a.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(a.phone)}">💬 Text</a>`:""}${a.email?`<a class="btn sm" href="mailto:${esc(a.email)}">✉️ Email</a>`:""}</div>
       <div class="small muted" style="margin-top:8px">${esc(a.phone)} ${a.email?"· "+esc(a.email):""}</div></div>`;
+  }
+  const vends=vendorsForReport(r);
+  if(vends.length){
+    html+=`<div class="sec"><h2>Vendors to contact</h2></div>`+vends.map(v=>`<div class="card">
+      <div style="font-weight:750">${esc(v.name)}${v.trade?` <span class="muted small">· ${esc(v.trade)}</span>`:""}</div>
+      ${v.note?`<div class="small muted" style="margin-top:2px">${esc(v.note)}</div>`:""}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${v.phone?`<a class="btn sm" href="tel:${esc(v.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(v.phone)}">💬 Text</a>`:""}${v.email?`<a class="btn sm" href="mailto:${esc(v.email)}">✉️ Email</a>`:""}</div>
+      <div class="small muted" style="margin-top:8px">${esc(v.phone||"")}${v.email?` · ${esc(v.email)}`:""}</div></div>`).join("");
   }
   if(r.invoiceId) html+=`<div class="card"><div class="row" style="align-items:center"><div style="flex:1;font-weight:700">Invoice created</div><a class="btn sm primary" href="#invoice/${r.invoiceId}">View →</a></div></div>`;
   app.innerHTML=html;
