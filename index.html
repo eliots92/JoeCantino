@@ -169,7 +169,7 @@ textarea.inp{min-height:110px;resize:vertical}
 .overlay{position:fixed;inset:0;background:rgba(11,25,30,.9);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
 .overlay img{max-width:100%;max-height:90vh;border-radius:10px}
 .pin-box{background:var(--surface);border-radius:18px;padding:26px;width:100%;max-width:320px;text-align:center;box-shadow:var(--shadow)}
-.pin-box input{letter-spacing:9px;text-align:center;font-size:28px}
+.pin-box input{text-align:center;font-size:17px;letter-spacing:1px}
 .empty{text-align:center;color:var(--muted);padding:44px 12px}
 .filters{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
 .filters select{min-height:42px;background:var(--surface);color:var(--ink);border:1px solid var(--line2);border-radius:11px;padding:0 11px;font-size:13px;flex:0 0 auto;font-weight:600}
@@ -271,8 +271,10 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 /* ============================================================================
    EDITABLE CONFIG — real My Portal data. Change anything here.
    ========================================================================== */
-const PIN_CODE = "4826";
-const USE_PIN  = false;
+/* Access gate. NOTE: this is a client-side password — it ships in the page
+   source, so it deters casual access but is not real security. */
+const PIN_CODE = "SilverStar321!";
+const USE_PIN  = true;
 
 /* Formspree — every saved report and sent invoice is POSTed here so there's a
    durable, emailed record. Paste your form endpoint from formspree.io
@@ -1223,11 +1225,11 @@ function requirePin(cb){
   if(!USE_PIN||!PIN_CODE) return cb();
   const slot=document.getElementById("modal-slot");
   slot.innerHTML=`<div class="overlay"><div class="pin-box"><span class="logo" style="width:52px;height:52px;border-radius:13px;font-size:22px;margin:0 auto 10px">M<b>P</b></span>
-    <div style="font-weight:800;font-size:18px">My Portal</div><div class="small muted" style="margin:4px 0 14px">Enter PIN</div>
-    <input class="inp" id="pin-in" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
+    <div style="font-weight:800;font-size:18px">My Portal</div><div class="small muted" style="margin:4px 0 14px">Enter password</div>
+    <input class="inp" id="pin-in" type="password" autocomplete="current-password" placeholder="Password">
     <div id="pin-err" class="small" style="color:var(--emergency);height:18px;margin:6px 0"></div>
     <button class="btn primary block" id="pin-go">Unlock</button></div></div>`;
-  const go=()=>{ if($("#pin-in").value===PIN_CODE){ slot.innerHTML=""; cb(); } else { $("#pin-err").textContent="Wrong PIN"; $("#pin-in").value=""; } };
+  const go=()=>{ if($("#pin-in").value===PIN_CODE){ slot.innerHTML=""; cb(); } else { $("#pin-err").textContent="Wrong password"; $("#pin-in").value=""; } };
   $("#pin-go").addEventListener("click",go); $("#pin-in").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); }); $("#pin-in").focus();
 }
 
