@@ -847,9 +847,32 @@ function funnelNext(){
 function readPhotos(files,cb){
   const list=Array.from(files); if(!list.length) return cb([]);
   const arr=[]; let done=0;
-  list.forEach(f=>{ const rd=new FileReader();
-    rd.onload=e=>{ arr.push(e.target.result); if(++done===list.length) cb(arr); };
-    rd.onerror=()=>{ if(++done===list.length) cb(arr); }; rd.readAsDataURL(f); });
+  list.forEach(f=>{ compressImage(f,dataUrl=>{ if(dataUrl) arr.push(dataUrl); if(++done===list.length) cb(arr); }); });
+}
+/* Downscale + JPEG-compress a photo before we store/upload it. A full-res phone
+   photo (several MB) becomes ~150–400KB — smaller storage and fast Formspree
+   uploads — while staying clear enough to document an issue. Honors EXIF
+   orientation via createImageBitmap; falls back to the original on any failure. */
+function compressImage(file, cb, maxDim=1600, quality=0.72){
+  const draw=(src,w,h)=>{
+    let nw=w, nh=h;
+    if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); nw=Math.round(w*s); nh=Math.round(h*s); }
+    const cv=document.createElement("canvas"); cv.width=nw; cv.height=nh;
+    cv.getContext("2d").drawImage(src,0,0,nw,nh);
+    return cv.toDataURL("image/jpeg", quality);
+  };
+  const fallback=()=>{ const rd=new FileReader();
+    rd.onload=e=>{ const img=new Image();
+      img.onload=()=>{ try{ cb(draw(img,img.naturalWidth,img.naturalHeight)); }catch(err){ cb(e.target.result); } };
+      img.onerror=()=>cb(e.target.result); img.src=e.target.result; };
+    rd.onerror=()=>cb(null); rd.readAsDataURL(file); };
+  if(window.createImageBitmap){
+    createImageBitmap(file,{imageOrientation:"from-image"}).then(bmp=>{
+      let out; try{ out=draw(bmp,bmp.width,bmp.height); }catch(e){ out=null; }
+      if(bmp.close) bmp.close();
+      out?cb(out):fallback();
+    }).catch(fallback);
+  } else fallback();
 }
 function draftReport(){
   const c=F.ctx, p=F.portal;
