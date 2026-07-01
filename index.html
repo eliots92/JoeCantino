@@ -205,7 +205,7 @@ textarea.inp{min-height:110px;resize:vertical}
 const PIN_CODE = "4826";
 const USE_PIN  = false;
 
-/* Properties carry Joe's real per-property hourly + travel rates (rate sheet, Jun 2026). */
+/* Properties carry the real per-property hourly + travel rates (rate sheet, Jun 2026). */
 const PROPERTIES = [
   { id:"2nd-1051", label:"1051 2nd Ave S",        rate:100, travel:25 },
   { id:"ham-640",  label:"640 Hamilton Ave",      rate:75,  travel:25 },
@@ -216,12 +216,12 @@ const PROPERTIES = [
 
 const BUSINESS = {
   name:"Catino Services",
-  person:"Joe Catino",
+  person:"",
   address:"4716 Tangelwood Drive, Nashville, TN 37216",
   phone:"617-633-8949",
   email:"j1catino@outlook.com",
-  payableTo:"Catino Services / Joe Catino",
-  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services / Joe Catino. Preferred: ACH / Direct Deposit or Check.",
+  payableTo:"Catino Services",
+  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services. Preferred: ACH / Direct Deposit or Check.",
   defaultTaxPct:0,
   invoiceStart:204            // last real invoice was #203
 };
@@ -612,7 +612,7 @@ function wireStep(step){
       c.answers[step.q]=r.value;
       app.querySelectorAll(".opt").forEach(o=>{const on=o.querySelector("input").checked;o.classList.toggle("on",on);const k=o.querySelector(".chk");if(k)k.textContent=on?'✓':'';});
       const b=$("#safebanner"); if(b) b.classList.toggle("hide", r.value!=="Yes");
-      // "No" auto-advances; "Yes" pauses so Joe reads the safety banner
+      // "No" auto-advances; "Yes" pauses so the user reads the safety banner
       if(r.value==="No"){ setTimeout(()=>{ if(collectStep(step)) advance(); },160); }
       else { showNext(); }
     }));
@@ -846,7 +846,7 @@ function paintInvoice(){
 
   let html=`<div class="sec"><a class="linkbtn" href="#invoices">‹ Invoices</a></div>
   <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">C<b>S</b></span>
-    <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc(BUSINESS.person)} · ${esc(BUSINESS.phone)}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
+    <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc([BUSINESS.person,BUSINESS.phone].filter(Boolean).join(" · "))}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
     <div class="itemrow" style="grid-template-columns:1fr 1fr;margin-top:12px">
       <div><label class="field" style="margin-top:0">Invoice #</label><input class="inp" id="inv-num" value="${esc(inv.number)}"></div>
       <div><label class="field" style="margin-top:0">Status</label><select class="inp" id="inv-status">${["draft","sent","paid"].map(s=>`<option ${inv.status===s?'selected':''}>${s}</option>`).join("")}</select></div>
@@ -948,7 +948,7 @@ function exportPDF(){
   const inv=editInv; const M=48; let y=58;
   doc.setFontSize(20).setFont(undefined,"bold").text(BUSINESS.name,M,y);
   doc.setFontSize(10).setFont(undefined,"normal");
-  doc.text(BUSINESS.person,M,y+16); doc.text(BUSINESS.address,M,y+30); doc.text(BUSINESS.email+" | "+BUSINESS.phone,M,y+44);
+  let hy=y+16; [BUSINESS.person,BUSINESS.address,BUSINESS.email+" | "+BUSINESS.phone].filter(Boolean).forEach(l=>{ doc.text(l,M,hy); hy+=14; });
   doc.setFontSize(22).setFont(undefined,"bold").text("INVOICE",564,y,{align:"right"});
   doc.setFontSize(10).setFont(undefined,"normal");
   doc.text("#"+inv.number,564,y+18,{align:"right"});
