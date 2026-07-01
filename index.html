@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16333D">
+<title>Catino Services — Field Reporting</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --ink:#16333D; --ink2:#204a58; --sage:#8FB99F; --sage-d:#4f7d63; --sage-tint:#eaf3ee;
+  --bg:#F4F1EA; --surface:#ffffff; --line:#e5e1d6; --line2:#d8d3c6;
+  --text:#1b2429; --muted:#6b7580;
+  --emergency:#c0392b; --urgent:#d97706; --soon:#2f6f9f; --routine:#7c8794; --ok:#2f855a;
+  --radius:16px; --shadow:0 1px 3px rgba(22,51,61,.08),0 1px 2px rgba(22,51,61,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{padding-bottom:88px;min-height:100vh}
+.wrap{max-width:640px;margin:0 auto;padding:0 16px}
+h1,h2,h3{margin:0}
+button{font:inherit;color:inherit}
+input,select,textarea{font:inherit}
+a{color:var(--ink)}
+
+/* Header */
+.topbar{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff}
+.topbar .wrap{display:flex;align-items:center;gap:12px;height:60px}
+.logo{width:36px;height:36px;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-1px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.logo b{color:var(--sage);font-weight:800}
+.brand{font-weight:800;font-size:16px;letter-spacing:.2px;line-height:1.1}
+.brand small{display:block;font-weight:500;color:#a9c4b6;font-size:11px;letter-spacing:.4px;margin-top:1px}
+.spacer{flex:1}
+.hbtn{background:var(--sage);color:var(--ink);border:0;border-radius:11px;min-height:40px;
+  padding:0 15px;font-weight:800;font-size:14px;cursor:pointer}
+
+/* "Working at" bar */
+.workbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.workbar .wrap{display:flex;align-items:center;gap:10px;height:48px}
+.workbar label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.workbar select{flex:1;min-height:36px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);
+  color:var(--ink);font-weight:700;padding:0 10px;font-size:14px}
+
+/* Search */
+.search{width:100%;min-height:50px;border-radius:13px;border:1px solid var(--line2);background:var(--surface);
+  color:var(--text);padding:0 16px;font-size:16px;margin:14px 0 4px;box-shadow:var(--shadow)}
+.search::placeholder{color:var(--muted)}
+
+/* Buttons */
+.btn{min-height:48px;border-radius:13px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);
+  padding:0 16px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:var(--ink2)}
+.btn.danger{background:var(--emergency);border-color:var(--emergency);color:#fff}
+.btn.block{width:100%}
+.btn.sm{min-height:40px;padding:0 13px;font-size:13px;border-radius:11px}
+
+/* Section labels */
+.sec{margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.sec h2{font-size:12px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.sec .spacer{flex:1}
+.dot{width:11px;height:11px;border-radius:4px}
+
+/* Portal grid */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+@media(min-width:520px){.grid{grid-template-columns:repeat(3,1fr)}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 13px;
+  text-align:left;min-height:86px;cursor:pointer;color:var(--text);display:flex;flex-direction:column;gap:6px;
+  border-top:4px solid var(--line2);box-shadow:var(--shadow)}
+.tile:active{transform:scale(.98)}
+.tile .pname{font-weight:750;font-size:15px;line-height:1.2}
+.tile .pmeta{font-size:11px;color:var(--muted);margin-top:auto}
+.tile.emergency-tile{background:#fdecea;border-top-color:var(--emergency)}
+.tile.emergency-tile .pname{color:var(--emergency)}
+
+/* Cards / rows */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;
+  margin-bottom:11px;box-shadow:var(--shadow)}
+.card.lc{border-left:4px solid var(--line2)}
+.row{display:flex;gap:11px;align-items:flex-start}
+.badge{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:6px;color:#fff;white-space:nowrap}
+.chip{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:20px;color:#fff}
+.chip.emergency{background:var(--emergency)} .chip.urgent{background:var(--urgent)}
+.chip.soon{background:var(--soon)} .chip.routine{background:var(--routine)}
+.muted{color:var(--muted)} .small{font-size:12px}
+.hazflag{display:inline-block;font-size:10px;font-weight:800;color:#fff;background:var(--emergency);padding:2px 7px;border-radius:5px;margin-right:4px}
+.flagpill{display:inline-block;font-size:10px;font-weight:800;color:var(--ink);background:var(--sage);padding:2px 7px;border-radius:5px;margin-right:4px}
+
+/* Funnel */
+.funnel-h{display:flex;align-items:center;gap:11px;margin:16px 0 4px}
+.prog{height:7px;background:var(--line);border-radius:5px;overflow:hidden;margin:8px 0 22px}
+.prog>span{display:block;height:100%;background:var(--sage);transition:width .25s}
+.q{font-size:23px;font-weight:800;line-height:1.2;margin-bottom:20px;letter-spacing:-.3px}
+.opts{display:flex;flex-direction:column;gap:11px}
+.opt{min-height:58px;border:1.5px solid var(--line2);background:var(--surface);border-radius:14px;padding:0 18px;
+  display:flex;align-items:center;gap:14px;cursor:pointer;font-size:17px;font-weight:600;color:var(--text);box-shadow:var(--shadow)}
+.opt:active{transform:scale(.99)}
+.opt.on{border-color:var(--sage-d);background:var(--sage-tint)}
+.opt .chk{width:22px;height:22px;border-radius:7px;border:2px solid var(--line2);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+.opt.on .chk{background:var(--sage-d);border-color:var(--sage-d)}
+.opt.round .chk{border-radius:50%}
+/* severity buttons */
+.sev{min-height:64px;border-radius:14px;border:1.5px solid var(--line2);background:var(--surface);cursor:pointer;
+  display:flex;align-items:center;gap:14px;padding:0 18px;box-shadow:var(--shadow);text-align:left}
+.sev:active{transform:scale(.99)}
+.sev .bar{width:8px;height:34px;border-radius:4px}
+.sev .t{font-size:18px;font-weight:800} .sev .s{font-size:12px;color:var(--muted);font-weight:600}
+label.field{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px;font-weight:700}
+.inp{width:100%;min-height:50px;border:1.5px solid var(--line2);background:var(--surface);color:var(--text);
+  border-radius:13px;padding:12px 15px;font-size:16px}
+.inp:focus{outline:none;border-color:var(--ink)}
+textarea.inp{min-height:110px;resize:vertical}
+.safety-banner{background:var(--emergency);color:#fff;border-radius:14px;padding:16px;font-weight:700;margin-top:16px;line-height:1.35}
+.hide{display:none}
+.toggle{display:flex;gap:10px;margin-top:8px}
+.toggle button{flex:1;min-height:50px;border-radius:12px;border:1.5px solid var(--line2);background:var(--surface);font-weight:700;font-size:15px;cursor:pointer;color:var(--text)}
+.toggle button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.toggle button.danger.on{background:var(--emergency);border-color:var(--emergency);color:#fff}
+
+/* Photos */
+.photo-add{display:flex;flex-wrap:wrap;gap:11px;margin-top:8px}
+.thumb{width:88px;height:88px;border-radius:12px;object-fit:cover;border:1px solid var(--line2);cursor:pointer}
+.photo-btn{width:88px;height:88px;border:2px dashed var(--line2);border-radius:12px;background:var(--surface);color:var(--sage-d);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:24px;cursor:pointer;font-weight:700}
+.photo-btn span{font-size:11px;color:var(--muted)}
+.expander{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.expander summary{cursor:pointer;font-weight:700;color:var(--sage-d);list-style:none;min-height:44px;display:flex;align-items:center}
+.expander summary::-webkit-details-marker{display:none}
+
+/* Bottom action bar */
+.actionbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -2px 10px rgba(22,51,61,.05)}
+.actionbar .wrap{display:flex;gap:11px}
+.actionbar .btn{flex:1;min-height:54px;font-size:17px}
+.actionbar .btn.back{flex:0 0 92px;font-size:15px}
+
+/* Bottom tabs */
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:25;padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .wrap{display:flex}
+.tab{flex:1;min-height:62px;background:none;border:0;color:var(--muted);font-size:11px;font-weight:800;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+.tab .ic{font-size:21px;line-height:1}
+.tab.on{color:var(--ink)} .tab.on .ic{filter:none}
+
+/* Detail */
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--muted);font-size:13px;flex:1} .kv .v{font-weight:700;text-align:right;flex:1.2}
+.gallery{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+.linkbtn{color:var(--sage-d);text-decoration:none;font-weight:700;font-size:14px}
+
+/* Invoice */
+.itemrow{display:grid;grid-template-columns:1fr 52px 74px 76px 32px;gap:6px;align-items:center;margin-bottom:8px}
+.itemrow .inp{min-height:44px;padding:7px 9px;font-size:14px}
+.itemrow .lt{text-align:right;font-weight:800;font-size:14px}
+.itemrow .del{background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.quickadd{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.totals .kv .v{font-size:16px} .totals .grand .v{font-size:23px;color:var(--ok)}
+
+/* Modal / overlay */
+.overlay{position:fixed;inset:0;background:rgba(11,25,30,.9);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.overlay img{max-width:100%;max-height:90vh;border-radius:10px}
+.pin-box{background:var(--surface);border-radius:18px;padding:26px;width:100%;max-width:320px;text-align:center;box-shadow:var(--shadow)}
+.pin-box input{letter-spacing:9px;text-align:center;font-size:28px}
+.empty{text-align:center;color:var(--muted);padding:44px 12px}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+.filters select{min-height:42px;background:var(--surface);color:var(--ink);border:1px solid var(--line2);border-radius:11px;padding:0 11px;font-size:13px;flex:0 0 auto;font-weight:600}
+.status-sel{min-height:38px;background:var(--bg);color:var(--ink);border:1px solid var(--line2);border-radius:9px;padding:0 9px;font-size:12px;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <span class="logo" id="hlogo" aria-label="Catino Services">C<b>S</b></span>
+  <div class="brand">Catino Services<small>Field reporting</small></div>
+  <div class="spacer"></div>
+  <button class="hbtn" id="report-btn">+ Report</button>
+</div></div>
+
+<div class="workbar"><div class="wrap">
+  <label for="workprop">At</label>
+  <select id="workprop"></select>
+</div></div>
+
+<div class="wrap" id="app"></div>
+
+<div class="tabbar" id="tabbar"><div class="wrap">
+  <button class="tab" data-nav="#home"><span class="ic">🛠️</span>Report</button>
+  <button class="tab" data-nav="#reports"><span class="ic">📋</span>Reports</button>
+  <button class="tab" data-nav="#invoices"><span class="ic">🧾</span>Invoices</button>
+</div></div>
+
+<div id="actionbar-slot"></div>
+<div id="modal-slot"></div>
+
+<script>
+"use strict";
+// Logo image removed — the "CS" monogram is drawn in CSS from the brand colors (.logo).
+
+/* ============================================================================
+   EDITABLE CONFIG — real Catino Services data. Change anything here.
+   ========================================================================== */
+const PIN_CODE = "4826";
+const USE_PIN  = false;
+
+/* Properties carry Joe's real per-property hourly + travel rates (rate sheet, Jun 2026). */
+const PROPERTIES = [
+  { id:"2nd-1051", label:"1051 2nd Ave S",        rate:100, travel:25 },
+  { id:"ham-640",  label:"640 Hamilton Ave",      rate:75,  travel:25 },
+  { id:"ham-642",  label:"642 Hamilton Ave",      rate:75,  travel:25 },
+  { id:"ham-646",  label:"646 Hamilton Ave",      rate:75,  travel:25 },
+  { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 },
+  { id:"ham-644",  label:"644 Hamilton Ave (owner)", rate:50, travel:0 }
+];
+
+const BUSINESS = {
+  name:"Catino Services",
+  person:"Joe Catino",
+  address:"4716 Tangelwood Drive, Nashville, TN 37216",
+  phone:"617-633-8949",
+  email:"j1catino@outlook.com",
+  payableTo:"Catino Services / Joe Catino",
+  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services / Joe Catino. Preferred: ACH / Direct Deposit or Check.",
+  defaultTaxPct:0,
+  invoiceStart:204            // last real invoice was #203
+};
+
+const DEFAULT_BILLTO = { name:"Silver Star Capital, LLC", address:"Attn: Eliot Silverman", phone:"", email:"es@silver-star.capital" };
+
+const GROUPS = [
+  { id:"safety",     name:"Safety & Emergency",   color:"#c0392b" },
+  { id:"building",   name:"Building Systems",     color:"#16333D" },
+  { id:"structure",  name:"Structure & Interior", color:"#4f7d63" },
+  { id:"exterior",   name:"Exterior & Grounds",   color:"#8a7a3b" },
+  { id:"sanitation", name:"Sanitation & Pest",    color:"#7a5aa0" },
+  { id:"utilities",  name:"Utilities & General",  color:"#b06a2a" }
+];
+
+const DEEP = {
+  plumbing:()=>[
+    {type:"dropdown",q:"What's leaking?",options:["Toilet","Sink / faucet","Shower / tub","Water heater","Sewer / main drain","Outdoor spigot","Something else"],required:true},
+    {type:"safety",q:"Is water flooding, or can't you shut it off?"},
+    {type:"yesno",q:"Standing water or leaking right now?",urgencyIfYes:"urgent"},
+    {type:"dropdown",q:"Water heater — gas or electric?",options:["Gas","Electric","Not sure"],when:c=>c.answers["What's leaking?"]==="Water heater"},
+    {type:"yesno",q:"Has this happened before (last 6 months)?"}
+  ],
+  hvac:()=>[
+    {type:"dropdown",q:"Which system?",options:["Central AC","Furnace","Heat pump","Mini-split","Boiler","Not sure"],required:true},
+    {type:"dropdown",q:"What's it doing?",options:["Runs but no heat/cool","Won't turn on","Making noise","Leaking water","Something else"],required:true},
+    {type:"safety",q:"Any gas or burning smell?"},
+    {type:"dropdown",q:"Thermostat screen?",options:["Blank","Normal","Error code","Dead batteries"]}
+  ],
+  electrical:()=>[
+    {type:"safety",q:"Sparks, burning smell, or a hot outlet/panel?"},
+    {type:"dropdown",q:"What's out?",options:["Outlet","Light fixture","Switch","Breaker panel","Whole room","EV charger","Something else"],required:true},
+    {type:"yesno",q:"Did a breaker trip?"},
+    {type:"yesno",q:"Trips again when you reset it?",urgencyIfYes:"urgent",when:c=>c.answers["Did a breaker trip?"]==="Yes"},
+    {type:"yesno",q:"Panel / permitted work needed?",flagIfYes:"licensed_review"}
+  ],
+  handyman:()=>[
+    {type:"multiselect",q:"What needs doing? (tap all)",options:["Drywall / paint","Door or lock","Cabinet / shelf","Appliance install","Furniture / TV mount","Fence / deck","Other"],required:true},
+    {type:"dropdown",q:"How many items?",options:["1","2–3","4+"],required:true},
+    {type:"yesno",q:"Do you have the parts? (No = you'll supply)"},
+    {type:"dropdown",q:"When's it needed?",options:["ASAP","This week","This month","Whenever"],required:true,
+      setsUrgency:v=>({"ASAP":"urgent","This week":"soon","This month":"routine","Whenever":"routine"}[v]||"routine")}
+  ]
+};
+
+const PORTALS = [
+  // Safety & Emergency (safety-first)
+  { id:"fire-smoke", group:"safety", name:"Fire / smoke", dangerPrompt:"Active fire or smoke RIGHT NOW?", subtypes:["Active fire","Smoke damage","Burn marks","Electrical fire"] },
+  { id:"gas-leak", group:"safety", name:"Gas leak / odor", dangerPrompt:"Smell gas NOW? Evacuate & call 911.", subtypes:["Gas odor","Hissing","CO alarm","Suspected leak"] },
+  { id:"detector", group:"safety", name:"Smoke / CO detector", dangerPrompt:"Alarm sounding for real smoke/CO now?", subtypes:["Smoke detector","CO detector","Chirping / battery","Missing"] },
+  { id:"security", group:"safety", name:"Break-in / vandalism", dangerPrompt:"Break-in happening / intruder now?", subtypes:["Break-in","Vandalism","Broken lock/door","Suspicious activity"] },
+  { id:"injury", group:"safety", name:"Injury / accident", dangerPrompt:"Someone hurt RIGHT NOW?", subtypes:["Injury on site","Slip / fall","Near miss","Vehicle / equipment"] },
+  { id:"biohazard", group:"safety", name:"Biohazard / hazmat", dangerPrompt:"Active exposure risk now?", subtypes:["Sewage","Blood / fluids","Chemical spill","Needles / sharps"] },
+
+  // Building Systems
+  { id:"plumbing", group:"building", name:"Plumbing", deep:true },
+  { id:"hvac", group:"building", name:"Heating / Cooling", deep:true },
+  { id:"electrical", group:"building", name:"Electrical", deep:true },
+  { id:"water-heater", group:"building", name:"Water heater", dangerPrompt:"Gas smell, big leak, or scalding water?", subtypes:["No hot water","Leaking","Pilot / ignition","Pressure valve","Not sure"] },
+  { id:"appliances", group:"building", name:"Appliances", dangerPrompt:"Sparking, smoke, or gas smell?", subtypes:["Refrigerator","Range / oven","Dishwasher","Washer","Dryer","Microwave"] },
+
+  // Structure & Interior
+  { id:"roof-leak", group:"structure", name:"Roof / ceiling leak", dangerPrompt:"Ceiling sagging / collapse risk?", subtypes:["Active drip","Water stain","Sagging ceiling","Missing shingles"] },
+  { id:"water-intrusion", group:"structure", name:"Flood / water damage", dangerPrompt:"Active flooding / water near electrical?", subtypes:["Flooding","Standing water","Seepage","Water damage"] },
+  { id:"mold", group:"structure", name:"Mold / moisture", subtypes:["Visible mold","Musty smell","Persistent damp","Condensation"] },
+  { id:"drywall", group:"structure", name:"Drywall / paint", subtypes:["Hole / damage","Cracks","Peeling paint","Water damage"] },
+  { id:"flooring", group:"structure", name:"Flooring", dangerPrompt:"Trip / fall hazard?", subtypes:["Damaged / broken","Water damage","Loose / lifting","Trip hazard"] },
+  { id:"windows", group:"structure", name:"Windows / glass", dangerPrompt:"Broken glass hazard?", subtypes:["Broken glass","Won't open/close","Foggy / failed seal","Torn screen"] },
+  { id:"doors", group:"structure", name:"Doors / locks", subtypes:["Won't lock","Won't open","Broken hardware","Lockout","Access control"] },
+  { id:"foundation", group:"structure", name:"Foundation / crack", dangerPrompt:"Structural collapse risk?", subtypes:["Crack","Settling","Bowing wall","Water in basement"] },
+
+  // Exterior & Grounds
+  { id:"landscaping", group:"exterior", name:"Landscaping / lawn", subtypes:["Overgrowth","Irrigation","Dead lawn","Erosion"] },
+  { id:"trees", group:"exterior", name:"Trees / limbs", dangerPrompt:"Limb on a building or power line?", subtypes:["Fallen limb","Hazard limb","Dead tree","Blocking access"] },
+  { id:"fencing", group:"exterior", name:"Fencing / gates", subtypes:["Damaged fence","Broken gate","Leaning","Missing section"] },
+  { id:"garage-door", group:"exterior", name:"Garage door", dangerPrompt:"Door off track / falling?", subtypes:["Won't open","Won't close","Off track","Opener failed"] },
+  { id:"driveway", group:"exterior", name:"Driveway / concrete", dangerPrompt:"Trip / fall hazard?", subtypes:["Cracking","Pothole","Heaving","Trip hazard"] },
+  { id:"gutters", group:"exterior", name:"Gutters / drainage", subtypes:["Clogged","Detached","Leaking","Poor drainage"] },
+  { id:"ext-lighting", group:"exterior", name:"Exterior lighting", subtypes:["Out","Flickering","Damaged fixture","Timer / sensor"] },
+
+  // Sanitation & Pest
+  { id:"pest", group:"sanitation", name:"Pest / rodent", subtypes:["Rodents","Roaches","Ants","Bed bugs","Wasps / bees"] },
+  { id:"sewer-septic", group:"sanitation", name:"Sewer / septic backup", dangerPrompt:"Sewage overflowing / contamination?", subtypes:["Backup","Overflow","Odor","Slow drains"] },
+  { id:"trash", group:"sanitation", name:"Trash / dumping", subtypes:["Overflow","Illegal dumping","Debris","Bulk items"] },
+  { id:"cleaning", group:"sanitation", name:"Cleaning / turnover", subtypes:["Move-out clean","Deep clean","Trash-out","Turnover prep"] },
+
+  // Utilities & General
+  { id:"power-outage", group:"utilities", name:"Power outage", dangerPrompt:"Downed line / live wire?", subtypes:["Whole building","Partial","Flickering","Utility outage"] },
+  { id:"water-shutoff", group:"utilities", name:"Water shutoff / main", dangerPrompt:"Uncontrolled water / main break?", subtypes:["Main shutoff needed","No water","Low pressure","Leak at main"] },
+  { id:"utility-meter", group:"utilities", name:"Utility meter", subtypes:["Electric meter","Gas meter","Water meter","Tampering"] },
+  { id:"handyman", group:"utilities", name:"Handyman / punch list", deep:true },
+  { id:"other", group:"utilities", name:"Something else", subtypes:["General note"] }
+];
+
+/* ============================================================================
+   STATE — swap storage in ONE place (store.get/set).
+   ========================================================================== */
+let AppState = { reports:[], invoices:[] };
+const store = { get(){ return AppState; }, set(n){ AppState = n; } };
+
+function track(event, payload){ try{ (window.__tracklog=window.__tracklog||[]).push({event,payload,t:Date.now()}); }catch(e){} }
+
+/* Helpers */
+const $ = (s,r=document)=>r.querySelector(s);
+const app = document.getElementById("app");
+const URG = { routine:0, soon:1, urgent:2, emergency:3 };
+const groupById = id => GROUPS.find(g=>g.id===id);
+const portalById = id => PORTALS.find(p=>p.id===id);
+const propById = id => PROPERTIES.find(p=>p.id===id);
+const propLabel = id => (propById(id)||{}).label || id || "";
+function uid(p){ return p+"_"+Math.random().toString(36).slice(2,9); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function money(n){ return "$"+(Number(n)||0).toFixed(2); }
+function fmtDate(iso){ return new Date(iso).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+function fmtDateTime(iso){ return new Date(iso).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+
+let currentProperty = PROPERTIES.length ? PROPERTIES[0].id : "";  // sticky "working at"
+
+/* ============================================================================
+   ROUTER
+   ========================================================================== */
+let F = null;
+function navigate(h){ if(location.hash===h){ route(); } else { location.hash=h; } }
+window.addEventListener("hashchange", route);
+function setTab(h){ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.nav===h)); }
+function clearBars(){ document.getElementById("actionbar-slot").innerHTML=""; }
+function getParam(k){ return new URLSearchParams(location.search).get(k); }
+
+function route(){
+  clearBars();
+  const h = location.hash || "#home";
+  const [base, arg] = h.replace(/^#/,"").split("/");
+  if(base==="funnel"){ if(!F || F.portal.id!==arg) startFunnel(arg); else renderFunnel(); setTab("#home"); return; }
+  F = null; document.body.style.paddingBottom="88px";
+  if(base==="reports"){ setTab("#reports"); renderReports(); }
+  else if(base==="report"){ setTab("#reports"); renderReportDetail(arg); }
+  else if(base==="invoices"){ setTab("#invoices"); renderInvoices(); }
+  else if(base==="invoice"){ const [invId,qs]=(arg||"").split("?"); const from=new URLSearchParams(qs||"").get("from"); setTab("#invoices"); renderInvoiceBuilder(invId==="new"?null:invId, invId==="new"?from:null); }
+  else { setTab("#home"); renderHome(); }
+  window.scrollTo(0,0);
+}
+
+/* ============================================================================
+   HOME
+   ========================================================================== */
+let homeQuery="";
+function renderHome(){
+  const reports = store.get().reports;
+  const counts={}; reports.forEach(r=>counts[r.portal]=(counts[r.portal]||0)+1);
+  const mostUsed = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0,3).map(portalById).filter(Boolean);
+  const q=homeQuery.trim().toLowerCase();
+  const match=p=>!q||p.name.toLowerCase().includes(q)||groupById(p.group).name.toLowerCase().includes(q);
+
+  let html=`<input class="search" id="portal-search" placeholder="Search — leak, door, roof…" value="${esc(homeQuery)}" autocomplete="off">
+    <div class="small muted" style="margin:0 2px 6px">Tap what happened. One tap per question — most reports take 20 seconds.</div>`;
+
+  if(!q && mostUsed.length){
+    html+=`<div class="sec"><h2>Your most-used</h2></div><div class="grid">${mostUsed.map(tileHtml).join("")}</div>`;
+  }
+  GROUPS.forEach(g=>{
+    const items=PORTALS.filter(p=>p.group===g.id && match(p));
+    if(!items.length) return;
+    html+=`<div class="sec"><span class="dot" style="background:${g.color}"></span><h2>${esc(g.name)}</h2></div>`;
+    html+=`<div class="grid">${items.map(tileHtml).join("")}</div>`;
+  });
+  if(q && !PORTALS.some(match)){
+    html+=`<div class="empty">Nothing matches “${esc(homeQuery)}”. Use <b>Something else</b> — it still captures a photo, location & note.</div>`;
+  }
+
+  html+=`<div class="sec"><h2>Recent reports</h2><div class="spacer"></div>${reports.length?'<a class="linkbtn" href="#reports">See all</a>':''}</div>`;
+  html += reports.length ? sortReports(reports).slice(0,4).map(reportRow).join("") : `<div class="empty">No reports yet. Tap a card above to start.</div>`;
+
+  app.innerHTML=html;
+  const s=$("#portal-search");
+  s.addEventListener("input",e=>{ homeQuery=e.target.value; renderHome(); const el=$("#portal-search"); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
+  wireTiles(); wireReportRows();
+}
+function tileHtml(p){
+  const g=groupById(p.group);
+  const cls=p.group==="safety"?"tile emergency-tile":"tile";
+  return `<button class="${cls}" data-portal="${p.id}" style="border-top-color:${g.color}">
+    <span class="pname">${esc(p.name)}</span>
+    <span class="pmeta">${esc(g.name)}${p.deep?" · guided":""}</span></button>`;
+}
+function wireTiles(){ document.querySelectorAll("[data-portal]").forEach(b=>b.addEventListener("click",()=>navigate("#funnel/"+b.dataset.portal))); }
+
+/* ============================================================================
+   FUNNEL ENGINE (auto-advance, streamlined tail)
+   ========================================================================== */
+function buildSteps(portal){
+  let spec;
+  if(portal.deep){ spec=DEEP[portal.id](); }
+  else {
+    const issue={type:"dropdown",q:"What happened?",options:[...(portal.subtypes||[]),"Something else"],required:true};
+    const safety={type:"safety",q:portal.dangerPrompt||"Any immediate hazard right now?"};
+    const severity={type:"severity",q:"How urgent is it?"};
+    spec = portal.group==="safety" ? [safety, issue, severity] : [issue, severity];
+  }
+  const tail=[
+    {type:"location",q:"Where is it?"},
+    {type:"details",q:"Add photos & a note"},
+    {type:"summary",q:"Ready to save"}
+  ];
+  return spec.concat(tail);
+}
+function startFunnel(id){
+  const portal=portalById(id); if(!portal){ navigate("#home"); return; }
+  F={ portal, steps:buildSteps(portal), i:0,
+      ctx:{ answers:{}, hazard:false, urgency:null, flags:[], habitability:false, photos:[],
+            location:{property:currentProperty, unitArea:""}, description:"", affected:{name:"",phone:"",email:""} } };
+  track("report_started",{portal:portal.id,group:portal.group});
+  renderFunnel();
+}
+function currentStep(){ return F.steps[F.i]; }
+function visibleSteps(){ return F.steps.filter(s=>!s.when||s.when(F.ctx)); }
+function raiseUrgency(u){ if(F.ctx.urgency==null||URG[u]>URG[F.ctx.urgency]) F.ctx.urgency=u; }
+
+function renderFunnel(){
+  const p=F.portal, g=groupById(p.group);
+  while(F.steps[F.i] && F.steps[F.i].when && !F.steps[F.i].when(F.ctx)) F.i++;
+  const step=F.steps[F.i], vis=visibleSteps();
+  const pos=vis.indexOf(step)+1, total=vis.length;
+  document.body.style.paddingBottom="100px";
+  app.innerHTML=`
+    <div class="funnel-h"><span class="dot" style="background:${g.color};width:15px;height:15px"></span>
+      <div><div style="font-weight:800">${esc(p.name)}</div>
+      <div class="small muted">${esc(g.name)}${F.ctx.hazard?' · <span class="hazflag">HAZARD</span>':''}</div></div></div>
+    <div class="prog"><span style="width:${Math.round(pos/total*100)}%"></span></div>
+    <div class="q">${esc(step.q)}</div>
+    <div id="stepbody">${renderStepBody(step)}</div>`;
+  wireStep(step);
+
+  const autoAdv = ["dropdown","severity","yesno"].includes(step.type);
+  const isLast = step.type==="summary";
+  let nextLabel = isLast ? "✓ Save report" : "Next";
+  document.getElementById("actionbar-slot").innerHTML=`<div class="actionbar"><div class="wrap">
+    <button class="btn back" id="f-back">${F.i===0?"Cancel":"‹ Back"}</button>
+    <button class="btn primary" id="f-next" ${autoAdv&&!isLast?'style="display:none"':''}>${nextLabel}</button>
+  </div></div>`;
+  $("#f-back").addEventListener("click", funnelBack);
+  const nb=$("#f-next"); if(nb) nb.addEventListener("click", funnelNext);
+}
+
+function renderStepBody(step){
+  const c=F.ctx;
+  switch(step.type){
+    case "dropdown":{
+      const cur=c.answers[step.q]||"";
+      return `<div class="opts">`+step.options.map(o=>`<label class="opt round ${cur===o?'on':''}"><span class="chk">${cur===o?'✓':''}</span><span>${esc(o)}</span><input type="radio" name="opt" value="${esc(o)}" ${cur===o?'checked':''} hidden></label>`).join("")+`</div>`;
+    }
+    case "multiselect":{
+      const cur=c.answers[step.q]||[];
+      return `<div class="opts">`+step.options.map(o=>`<label class="opt ${cur.includes(o)?'on':''}"><span class="chk">${cur.includes(o)?'✓':''}</span><span>${esc(o)}</span><input type="checkbox" value="${esc(o)}" ${cur.includes(o)?'checked':''} hidden></label>`).join("")+`</div>`;
+    }
+    case "safety":{
+      const cur=c.answers[step.q]||"";
+      return `<div class="opts">
+        <label class="opt round ${cur==='Yes'?'on':''}" style="${cur==='Yes'?'border-color:var(--emergency);background:#fdecea':''}"><span class="chk" style="${cur==='Yes'?'background:var(--emergency);border-color:var(--emergency)':''}">${cur==='Yes'?'✓':''}</span><span>Yes — hazard now</span><input type="radio" name="opt" value="Yes" ${cur==='Yes'?'checked':''} hidden></label>
+        <label class="opt round ${cur==='No'?'on':''}"><span class="chk">${cur==='No'?'✓':''}</span><span>No</span><input type="radio" name="opt" value="No" ${cur==='No'?'checked':''} hidden></label>
+      </div><div class="safety-banner ${cur==='Yes'?'':'hide'}" id="safebanner">⚠️ Make sure you and anyone nearby are safe first. This is flagged an <b>emergency</b> and pinned to the top of the list.</div>`;
+    }
+    case "yesno":{
+      const cur=c.answers[step.q]||"";
+      return `<div class="opts">
+        <label class="opt round ${cur==='Yes'?'on':''}"><span class="chk">${cur==='Yes'?'✓':''}</span><span>Yes</span><input type="radio" name="opt" value="Yes" ${cur==='Yes'?'checked':''} hidden></label>
+        <label class="opt round ${cur==='No'?'on':''}"><span class="chk">${cur==='No'?'✓':''}</span><span>No</span><input type="radio" name="opt" value="No" ${cur==='No'?'checked':''} hidden></label></div>`;
+    }
+    case "severity":{
+      const cur=c.answers[step.q]||"";
+      const opts=[["emergency","Emergency","Right now — someone/something at risk"],["urgent","Urgent","Today / within 24h"],["soon","Soon","This week"],["routine","Routine","Whenever it fits"]];
+      const col={emergency:"var(--emergency)",urgent:"var(--urgent)",soon:"var(--soon)",routine:"var(--routine)"};
+      return `<div class="opts">`+opts.map(([v,t,s])=>`<button class="sev ${cur===v?'on':''}" data-sev="${v}" style="${cur===v?'border-color:'+col[v]+';background:#fff':''}"><span class="bar" style="background:${col[v]}"></span><span><span class="t">${t}</span><br><span class="s">${s}</span></span></button>`).join("")+`</div>`;
+    }
+    case "location":{
+      const l=c.location;
+      const propField=PROPERTIES.length
+        ? `<label class="field" style="margin-top:0">Property</label><select class="inp" id="loc-prop">${PROPERTIES.map(p=>`<option value="${p.id}" ${l.property===p.id?'selected':''}>${esc(p.label)}</option>`).join("")}</select>`
+        : `<label class="field" style="margin-top:0">Address</label><input class="inp" id="loc-prop" value="${esc(l.property)}" placeholder="Property address">`;
+      return `${propField}
+        <label class="field">Unit / area <span class="muted">(optional)</span></label>
+        <input class="inp" id="loc-unit" value="${esc(l.unitArea)}" placeholder="e.g. Unit 2B, rear stairwell, roof NW corner">`;
+    }
+    case "details":{
+      const c2=c;
+      return `<label class="field" style="margin-top:0">Photos</label>
+        <div class="photo-add" id="photos">
+          ${c2.photos.map((s,i)=>`<img class="thumb" src="${s}" data-idx="${i}">`).join("")}
+          <label class="photo-btn">📷<span>Add</span><input type="file" accept="image/*" capture="environment" multiple id="photo-input" hidden></label>
+        </div>
+        <label class="field">Note <span class="muted">(optional)</span></label>
+        <textarea class="inp" id="desc" placeholder="Anything worth saying — what you see, what you did.">${esc(c2.description)}</textarea>
+        <label class="field">Is the unit unusable right now?</label>
+        <div class="toggle" id="habit">
+          <button data-h="no" class="${c2.habitability?'':'on'}">No, still usable</button>
+          <button data-h="yes" class="danger ${c2.habitability?'on':''}">Yes, unusable</button>
+        </div>
+        <details class="expander"><summary>+ Add tenant / contact (optional)</summary>
+          <label class="field">Name</label><input class="inp" id="af-name" value="${esc(c2.affected.name)}">
+          <label class="field">Phone</label><input class="inp" id="af-phone" type="tel" value="${esc(c2.affected.phone)}">
+          <label class="field">Email</label><input class="inp" id="af-email" type="email" value="${esc(c2.affected.email)}">
+        </details>`;
+    }
+    case "summary":{
+      const r=draftReport(), pv=buildAutoSummary(r,F.portal);
+      return `<div class="card lc" style="border-left-color:${groupById(F.portal.group).color}">
+        <div style="font-weight:800;font-size:16px;line-height:1.35;margin-bottom:8px">${esc(pv)}</div>
+        <div class="small">${c.hazard?'<span class="hazflag">HAZARD</span>':''}${c.habitability?'<span class="flagpill">UNUSABLE</span>':''}${c.flags.map(f=>`<span class="flagpill">${esc(f.replace(/_/g,' '))}</span>`).join("")}</div>
+        <div class="small muted" style="margin-top:8px">${esc(propLabel(c.location.property))} ${esc(c.location.unitArea)} · ${c.photos.length} photo(s)</div>
+      </div><div class="small muted">Tap <b>Save report</b> — you can build an invoice from it after.</div>`;
+    }
+  }
+  return "";
+}
+
+function wireStep(step){
+  const c=F.ctx;
+  // Listen on the input's `change` (fires once per tap). Listening on the label's
+  // click double-fires — the label re-activates the control, which bubbles back
+  // and would skip a step. This is why the safety question was being skipped.
+  if(step.type==="dropdown"||step.type==="yesno"){
+    app.querySelectorAll('input[name="opt"]').forEach(r=>r.addEventListener("change",()=>{
+      c.answers[step.q]=r.value; markAndAdvance(step);
+    }));
+  }
+  if(step.type==="safety"){
+    app.querySelectorAll('input[name="opt"]').forEach(r=>r.addEventListener("change",()=>{
+      c.answers[step.q]=r.value;
+      app.querySelectorAll(".opt").forEach(o=>{const on=o.querySelector("input").checked;o.classList.toggle("on",on);const k=o.querySelector(".chk");if(k)k.textContent=on?'✓':'';});
+      const b=$("#safebanner"); if(b) b.classList.toggle("hide", r.value!=="Yes");
+      // "No" auto-advances; "Yes" pauses so Joe reads the safety banner
+      if(r.value==="No"){ setTimeout(()=>{ if(collectStep(step)) advance(); },160); }
+      else { showNext(); }
+    }));
+  }
+  if(step.type==="severity"){
+    app.querySelectorAll("[data-sev]").forEach(btn=>btn.addEventListener("click",()=>{
+      c.answers[step.q]=btn.dataset.sev; markAndAdvance(step);
+    }));
+  }
+  if(step.type==="multiselect"){
+    app.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener("change",()=>{
+      c.answers[step.q]=[...app.querySelectorAll("input[type=checkbox]:checked")].map(x=>x.value);
+      app.querySelectorAll(".opt").forEach(o=>{const on=o.querySelector("input").checked;o.classList.toggle("on",on);o.querySelector(".chk").textContent=on?'✓':'';});
+    }));
+  }
+  if(step.type==="details"){
+    $("#photo-input").addEventListener("change",e=>readPhotos(e.target.files,arr=>{ c.photos.push(...arr); renderFunnel(); }));
+    app.querySelectorAll(".thumb").forEach(img=>img.addEventListener("click",()=>{ c.photos.splice(+img.dataset.idx,1); renderFunnel(); }));
+    app.querySelectorAll("#habit button").forEach(b=>b.addEventListener("click",()=>{
+      c.habitability=b.dataset.h==="yes";
+      app.querySelectorAll("#habit button").forEach(x=>x.classList.toggle("on",x.dataset.h===b.dataset.h));
+    }));
+  }
+}
+function showNext(){ const nb=$("#f-next"); if(nb) nb.style.display=""; }
+function markAndAdvance(step){
+  app.querySelectorAll(".opt").forEach(o=>{const inp=o.querySelector("input");if(inp){const on=inp.checked;o.classList.toggle("on",on);const chk=o.querySelector(".chk");if(chk)chk.textContent=on?'✓':'';}});
+  app.querySelectorAll(".sev").forEach(s=>s.classList.toggle("on",s.dataset.sev===F.ctx.answers[step.q]));
+  setTimeout(()=>{ if(collectStep(step)) advance(); },170);
+}
+function advance(){ do{ F.i++; }while(F.steps[F.i]&&F.steps[F.i].when&&!F.steps[F.i].when(F.ctx)); renderFunnel(); }
+
+function collectStep(step){
+  const c=F.ctx, key=step.q, ans=c.answers[key];
+  if(step.type==="location"){
+    const pv=$("#loc-prop").value, uv=$("#loc-unit").value.trim();
+    c.location={property:pv, unitArea:uv};
+    if(pv) currentProperty=pv;  // keep "working at" in sync
+  }
+  if(step.type==="details"){
+    c.description=$("#desc").value.trim();
+    c.affected={ name:$("#af-name").value.trim(), phone:$("#af-phone").value.trim(), email:$("#af-email").value.trim() };
+  }
+  if(step.required && (step.type==="dropdown"||step.type==="safety"||step.type==="yesno") && !ans){ alert("Pick one to continue."); return false; }
+  if(step.required && step.type==="multiselect" && (!ans||!ans.length)){ alert("Tap at least one."); return false; }
+  if(step.type==="safety" && ans==="Yes"){ c.hazard=true; raiseUrgency("emergency"); }
+  if(step.type==="yesno" && ans==="Yes"){
+    if(step.urgencyIfYes) raiseUrgency(step.urgencyIfYes);
+    if(step.flagIfYes && !c.flags.includes(step.flagIfYes)) c.flags.push(step.flagIfYes);
+  }
+  if(step.type==="severity" && ans==="emergency"){ c.hazard=true; }
+  if(step.type==="severity" && ans){ raiseUrgency(ans); }
+  if(step.setsUrgency && ans){ const u=step.setsUrgency(ans); if(u) raiseUrgency(u); }
+  return true;
+}
+function funnelBack(){
+  if(F.i===0){ if(confirm("Discard this report?")){ F=null; navigate("#home"); } return; }
+  do{ F.i--; }while(F.i>0 && F.steps[F.i].when && !F.steps[F.i].when(F.ctx));
+  renderFunnel();
+}
+function funnelNext(){
+  const step=currentStep();
+  if(!collectStep(step)) return;
+  track("report_step",{portal:F.portal.id,step:step.type});
+  if(step.type==="summary") return saveReport();
+  advance();
+}
+function readPhotos(files,cb){
+  const list=Array.from(files); if(!list.length) return cb([]);
+  const arr=[]; let done=0;
+  list.forEach(f=>{ const rd=new FileReader();
+    rd.onload=e=>{ arr.push(e.target.result); if(++done===list.length) cb(arr); };
+    rd.onerror=()=>{ if(++done===list.length) cb(arr); }; rd.readAsDataURL(f); });
+}
+function draftReport(){
+  const c=F.ctx, p=F.portal;
+  return { id:"draft", category:p.group, portal:p.id, portalName:p.name, createdAt:new Date().toISOString(),
+    urgency:c.urgency||"routine", hazard:c.hazard, habitabilityImpact:c.habitability, flags:c.flags.slice(),
+    answers:Object.entries(c.answers).map(([q,a])=>({q,a:Array.isArray(a)?a.join(", "):a})),
+    autoSummary:"", photos:c.photos.slice(), location:{...c.location},
+    affectedParty:(c.affected.name||c.affected.phone||c.affected.email)?{...c.affected}:null,
+    description:c.description, status:"new", invoiceId:null };
+}
+function buildAutoSummary(r,portal){
+  const loc=r.location.unitArea||propLabel(r.location.property)||"no location";
+  const bits=r.answers.filter(x=>x.a && x.a!=="Yes" && x.a!=="No" && !/how urgent|hazard|unusable/i.test(x.q)).slice(0,2).map(x=>x.a);
+  const habit=r.habitabilityImpact?"unit unusable":"usable";
+  return `${portal.name} — ${loc}${bits.length?", "+bits.join(", "):""}, ${habit}, ${r.photos.length} photo${r.photos.length===1?"":"s"}, ${r.urgency}`;
+}
+function saveReport(){
+  const r=draftReport(); r.id=uid("r"); r.autoSummary=buildAutoSummary(r,F.portal);
+  const st=store.get(); st.reports.push(r); store.set(st);
+  track("report_saved",{id:r.id,portal:r.portal,urgency:r.urgency,hazard:r.hazard,photos:r.photos.length});
+  F=null; navigate("#report/"+r.id);
+}
+
+/* ============================================================================
+   REPORTS
+   ========================================================================== */
+let filters={category:"",severity:"",status:"",property:""};
+function sortReports(list){ return list.slice().sort((a,b)=> a.urgency!==b.urgency ? URG[b.urgency]-URG[a.urgency] : new Date(b.createdAt)-new Date(a.createdAt)); }
+function reportRow(r){
+  const g=groupById(r.category);
+  return `<div class="card lc" data-report="${r.id}" style="border-left-color:${g.color};cursor:pointer">
+    <div class="row"><span class="badge" style="background:${g.color}">${esc(g.name.split(" ")[0])}</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:750;line-height:1.3">${r.hazard?'<span class="hazflag">⚠</span>':''}${esc(r.autoSummary)}</div>
+      <div class="small muted" style="margin-top:3px">${esc(propLabel(r.location.property))} ${esc(r.location.unitArea)} · ${fmtDateTime(r.createdAt)}</div></div>
+      <span class="chip ${r.urgency}">${r.urgency}</span></div></div>`;
+}
+function wireReportRows(){ document.querySelectorAll("[data-report]").forEach(el=>el.addEventListener("click",()=>navigate("#report/"+el.dataset.report))); }
+function renderReports(){
+  let list=store.get().reports;
+  if(filters.category) list=list.filter(r=>r.category===filters.category);
+  if(filters.severity) list=list.filter(r=>r.urgency===filters.severity);
+  if(filters.status)   list=list.filter(r=>r.status===filters.status);
+  if(filters.property) list=list.filter(r=>r.location.property===filters.property);
+  list=sortReports(list);
+  const sel=(id,cur,opts)=>`<select data-filter="${id}"><option value="">${id[0].toUpperCase()+id.slice(1)}: all</option>${opts.map(o=>`<option value="${o.v}" ${cur===o.v?'selected':''}>${esc(o.l)}</option>`).join("")}</select>`;
+  let html=`<div class="sec"><h2>Reports (${list.length})</h2></div>
+    <div class="filters">
+      ${sel("category",filters.category,GROUPS.map(g=>({v:g.id,l:g.name})))}
+      ${sel("severity",filters.severity,["emergency","urgent","soon","routine"].map(x=>({v:x,l:x})))}
+      ${sel("status",filters.status,["new","quoted","scheduled","done"].map(x=>({v:x,l:x})))}
+      ${PROPERTIES.length?sel("property",filters.property,PROPERTIES.map(p=>({v:p.id,l:p.label}))):""}
+    </div>`;
+  if(!list.length){ html+=`<div class="empty">No reports match. <a class="linkbtn" href="#home">Start one →</a></div>`; }
+  else html+=list.map(r=>{
+    const g=groupById(r.category);
+    return `<div class="card lc" style="border-left-color:${g.color}"><div class="row">
+      <span class="badge" style="background:${g.color}">${esc(g.name.split(" ")[0])}</span>
+      <div style="flex:1;min-width:0;cursor:pointer" data-report="${r.id}"><div style="font-weight:750;line-height:1.3">${r.hazard?'<span class="hazflag">⚠</span>':''}${esc(r.autoSummary)}</div>
+        <div class="small muted" style="margin-top:3px">${esc(propLabel(r.location.property))} ${esc(r.location.unitArea)} · ${fmtDateTime(r.createdAt)}</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <span class="chip ${r.urgency}">${r.urgency}</span>
+        <select class="status-sel" data-status="${r.id}">${["new","quoted","scheduled","done"].map(s=>`<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join("")}</select>
+      </div></div></div>`;
+  }).join("");
+  app.innerHTML=html;
+  document.querySelectorAll("[data-filter]").forEach(s=>s.addEventListener("change",()=>{ filters[s.dataset.filter]=s.value; renderReports(); }));
+  document.querySelectorAll("[data-status]").forEach(s=>s.addEventListener("change",()=>updateReport(s.dataset.status,{status:s.value})));
+  wireReportRows();
+}
+function updateReport(id,patch){ const st=store.get(); const r=st.reports.find(x=>x.id===id); if(r){ Object.assign(r,patch); store.set(st); } }
+
+function renderReportDetail(id){
+  const r=store.get().reports.find(x=>x.id===id); if(!r){ navigate("#reports"); return; }
+  const g=groupById(r.category);
+  let html=`<div class="sec"><a class="linkbtn" href="#reports">‹ Reports</a></div>
+    <div class="card lc" style="border-left-color:${g.color}">
+      <div class="row" style="align-items:center"><span class="badge" style="background:${g.color}">${esc(g.name)}</span><div class="spacer" style="flex:1"></div><span class="chip ${r.urgency}">${r.urgency}</span></div>
+      <h2 style="margin:10px 0 4px;font-size:19px">${esc(r.portalName)}</h2>
+      <div class="small muted">${fmtDateTime(r.createdAt)}</div>
+      <div style="margin-top:8px">${r.hazard?'<span class="hazflag">HAZARD</span>':''}${r.habitabilityImpact?'<span class="flagpill">UNIT UNUSABLE</span>':''}${r.flags.map(f=>`<span class="flagpill">${esc(f.replace(/_/g,' '))}</span>`).join("")}</div>
+    </div>
+    <div class="card"><div class="kv"><span class="k">Property</span><span class="v">${esc(propLabel(r.location.property))||"—"}</span></div>
+      <div class="kv"><span class="k">Unit / area</span><span class="v">${esc(r.location.unitArea)||"—"}</span></div></div>
+    <div class="card"><label class="field" style="margin-top:0">Status</label>
+      <select class="inp" id="detail-status">${["new","quoted","scheduled","done"].map(s=>`<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join("")}</select></div>
+    <div class="sec"><h2>Report</h2></div><div class="card">`;
+  r.answers.forEach(qa=>html+=`<div class="kv"><span class="k">${esc(qa.q)}</span><span class="v">${esc(qa.a)}</span></div>`);
+  if(r.description) html+=`<div style="padding-top:10px" class="small">${esc(r.description)}</div>`;
+  html+=`</div>`;
+  if(r.photos.length) html+=`<div class="sec"><h2>Photos (${r.photos.length})</h2></div><div class="gallery">`+r.photos.map(s=>`<img class="thumb" src="${s}" data-full="${s}">`).join("")+`</div>`;
+  if(r.affectedParty){ const a=r.affectedParty;
+    html+=`<div class="sec"><h2>Tenant / contact</h2></div><div class="card"><div style="font-weight:750">${esc(a.name)||"—"}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${a.phone?`<a class="btn sm" href="tel:${esc(a.phone)}">📞 Call</a><a class="btn sm" href="sms:${esc(a.phone)}">💬 Text</a>`:""}${a.email?`<a class="btn sm" href="mailto:${esc(a.email)}">✉️ Email</a>`:""}</div>
+      <div class="small muted" style="margin-top:8px">${esc(a.phone)} ${a.email?"· "+esc(a.email):""}</div></div>`;
+  }
+  if(r.invoiceId) html+=`<div class="card"><div class="row" style="align-items:center"><div style="flex:1;font-weight:700">Invoice created</div><a class="btn sm primary" href="#invoice/${r.invoiceId}">View →</a></div></div>`;
+  app.innerHTML=html;
+  document.body.style.paddingBottom="100px";
+  document.getElementById("actionbar-slot").innerHTML=`<div class="actionbar"><div class="wrap"><button class="btn primary block" id="build-inv">🧾 Build invoice from this</button></div></div>`;
+  $("#build-inv").addEventListener("click",()=>navigate("#invoice/new?from="+r.id));
+  $("#detail-status").addEventListener("change",e=>updateReport(r.id,{status:e.target.value}));
+  document.querySelectorAll("[data-full]").forEach(img=>img.addEventListener("click",()=>showImage(img.dataset.full)));
+}
+function showImage(src){ const slot=document.getElementById("modal-slot"); slot.innerHTML=`<div class="overlay" id="imgov"><img src="${src}"></div>`; $("#imgov").addEventListener("click",()=>slot.innerHTML=""); }
+
+/* ============================================================================
+   INVOICES (labor + materials, per-property rate)
+   ========================================================================== */
+function invTotal(inv){
+  const sub=inv.items.reduce((s,it)=>s+(Number(it.qty)||0)*(Number(it.price)||0),0);
+  const disc=Number(inv.discount)||0; const tax=(sub-disc)*((Number(inv.taxPct)||0)/100);
+  return sub-disc+tax;
+}
+function addDays(iso,n){ const d=new Date(iso); d.setDate(d.getDate()+n); return d.toISOString(); }
+function renderInvoices(){
+  const list=store.get().invoices.slice().reverse();
+  let html=`<div class="sec"><h2>Invoices (${list.length})</h2></div>`;
+  if(!list.length) html+=`<div class="empty">No invoices yet. Open a report and tap <b>Build invoice</b>.</div>`;
+  else html+=list.map(inv=>`<div class="card" data-inv="${inv.id}" style="cursor:pointer"><div class="row" style="align-items:center">
+    <div style="flex:1"><div style="font-weight:750">Invoice #${esc(inv.number)} · ${esc(inv.billTo.name||"—")}</div>
+    <div class="small muted">${fmtDate(inv.date)}${inv.reportId?" · from report":""}</div></div>
+    <div style="text-align:right"><div style="font-weight:800;color:var(--ok)">${money(invTotal(inv))}</div><div class="small muted">${esc(inv.status||"draft")}</div></div></div></div>`).join("");
+  html+=`<div style="margin-top:14px"><button class="btn block" id="new-inv">+ New blank invoice</button></div>`;
+  app.innerHTML=html;
+  document.querySelectorAll("[data-inv]").forEach(el=>el.addEventListener("click",()=>navigate("#invoice/"+el.dataset.inv)));
+  $("#new-inv").addEventListener("click",()=>navigate("#invoice/new"));
+}
+function newInvoiceFrom(reportId){
+  const st=store.get();
+  const now=new Date().toISOString();
+  const inv={ id:uid("inv"), reportId:reportId||null, propertyId:currentProperty, number:String(BUSINESS.invoiceStart+st.invoices.length),
+    date:now, dueDate:addDays(now,15), billTo:{...DEFAULT_BILLTO}, items:[], taxPct:BUSINESS.defaultTaxPct, discount:0,
+    notes:BUSINESS.defaultNotes, status:"draft" };
+  if(reportId){
+    const r=st.reports.find(x=>x.id===reportId);
+    if(r){ inv.propertyId=r.location.property;
+      const pr=propById(r.location.property);
+      inv.items=[{desc:r.autoSummary, qty:1, price:pr?pr.rate:75}];
+      if(pr && pr.travel) inv.items.push({desc:"Travel", qty:1, price:pr.travel});
+    }
+  }
+  if(!inv.items.length) inv.items=[{desc:"",qty:1,price:0}];
+  return inv;
+}
+let editInv=null;
+function renderInvoiceBuilder(id, fromReport){
+  const st=store.get();
+  editInv = id ? JSON.parse(JSON.stringify(st.invoices.find(x=>x.id===id))) : newInvoiceFrom(fromReport);
+  if(!id) track("invoice_created",{from:fromReport||null});
+  paintInvoice();
+}
+function paintInvoice(){
+  const inv=editInv;
+  const pr=propById(inv.propertyId);
+  const sub=inv.items.reduce((s,it)=>s+(Number(it.qty)||0)*(Number(it.price)||0),0);
+  const disc=Number(inv.discount)||0; const tax=(sub-disc)*((Number(inv.taxPct)||0)/100); const total=sub-disc+tax;
+  const rate = pr?pr.rate:75, travel = pr?pr.travel:0;
+
+  let html=`<div class="sec"><a class="linkbtn" href="#invoices">‹ Invoices</a></div>
+  <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">C<b>S</b></span>
+    <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc(BUSINESS.person)} · ${esc(BUSINESS.phone)}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
+    <div class="itemrow" style="grid-template-columns:1fr 1fr;margin-top:12px">
+      <div><label class="field" style="margin-top:0">Invoice #</label><input class="inp" id="inv-num" value="${esc(inv.number)}"></div>
+      <div><label class="field" style="margin-top:0">Status</label><select class="inp" id="inv-status">${["draft","sent","paid"].map(s=>`<option ${inv.status===s?'selected':''}>${s}</option>`).join("")}</select></div>
+      <div><label class="field">Date</label><input class="inp" id="inv-date" type="date" value="${inv.date.slice(0,10)}"></div>
+      <div><label class="field">Due</label><input class="inp" id="inv-due" type="date" value="${inv.dueDate.slice(0,10)}"></div>
+    </div>
+    <label class="field">Property (sets rate)</label>
+    <select class="inp" id="inv-prop"><option value="">— none —</option>${PROPERTIES.map(p=>`<option value="${p.id}" ${inv.propertyId===p.id?'selected':''}>${esc(p.label)} · $${p.rate}/hr</option>`).join("")}</select>
+  </div>
+
+  <div class="sec"><h2>Bill to</h2></div>
+  <div class="card">
+    <label class="field" style="margin-top:0">Name</label><input class="inp" id="bt-name" value="${esc(inv.billTo.name)}">
+    <label class="field">Address / attn</label><input class="inp" id="bt-addr" value="${esc(inv.billTo.address)}">
+    <label class="field">Email</label><input class="inp" id="bt-email" value="${esc(inv.billTo.email)}">
+  </div>
+
+  <div class="sec"><h2>Line items</h2></div>
+  <div class="quickadd">
+    <button class="btn sm" data-add="labor">+ Labor (1 hr · $${rate})</button>
+    ${travel?`<button class="btn sm" data-add="travel">+ Travel ($${travel})</button>`:""}
+    <button class="btn sm" data-add="materials">+ Materials</button>
+    <button class="btn sm" data-add="blank">+ Blank line</button>
+  </div>
+  <div class="card">
+    <div class="itemrow" style="font-size:11px;color:var(--muted);font-weight:700"><div>Description</div><div>Hrs/Qty</div><div>Rate</div><div style="text-align:right">Amount</div><div></div></div>
+    <div id="items">`;
+  inv.items.forEach((it,i)=>{
+    const lt=(Number(it.qty)||0)*(Number(it.price)||0);
+    html+=`<div class="itemrow">
+      <input class="inp" data-i="${i}" data-f="desc" value="${esc(it.desc)}" placeholder="Description">
+      <input class="inp" data-i="${i}" data-f="qty" type="number" inputmode="decimal" value="${esc(it.qty)}">
+      <input class="inp" data-i="${i}" data-f="price" type="number" inputmode="decimal" value="${esc(it.price)}">
+      <div class="lt">${money(lt)}</div><button class="del" data-del="${i}">×</button></div>`;
+  });
+  html+=`</div></div>
+
+  <div class="card totals">
+    <div class="kv"><span class="k">Subtotal</span><span class="v">${money(sub)}</span></div>
+    <div class="kv"><span class="k">Discount ($)</span><span class="v"><input class="inp" style="width:110px;text-align:right;min-height:40px" id="inv-disc" type="number" inputmode="decimal" value="${esc(inv.discount)}"></span></div>
+    <div class="kv"><span class="k">Tax (%)</span><span class="v"><input class="inp" style="width:110px;text-align:right;min-height:40px" id="inv-tax" type="number" inputmode="decimal" value="${esc(inv.taxPct)}"></span></div>
+    <div class="kv grand"><span class="k">Total due</span><span class="v">${money(total)}</span></div>
+  </div>
+  <div class="card"><label class="field" style="margin-top:0">Notes / terms</label><textarea class="inp" id="inv-notes" style="min-height:84px">${esc(inv.notes)}</textarea></div>`;
+
+  app.innerHTML=html; document.body.style.paddingBottom="100px";
+  document.getElementById("actionbar-slot").innerHTML=`<div class="actionbar"><div class="wrap">
+    <button class="btn" id="inv-save">Save</button><button class="btn" id="inv-sent">Mark sent</button><button class="btn primary" id="inv-pdf">Export PDF</button></div></div>`;
+
+  const bind=(sel,fn)=>{ const el=$(sel); if(el) el.addEventListener("input",fn); };
+  bind("#inv-num",e=>editInv.number=e.target.value);
+  bind("#inv-date",e=>editInv.date=new Date(e.target.value).toISOString());
+  bind("#inv-due",e=>editInv.dueDate=new Date(e.target.value).toISOString());
+  $("#inv-status").addEventListener("change",e=>editInv.status=e.target.value);
+  $("#inv-prop").addEventListener("change",e=>{ editInv.propertyId=e.target.value; paintInvoice(); });
+  bind("#bt-name",e=>editInv.billTo.name=e.target.value);
+  bind("#bt-addr",e=>editInv.billTo.address=e.target.value);
+  bind("#bt-email",e=>editInv.billTo.email=e.target.value);
+  bind("#inv-notes",e=>editInv.notes=e.target.value);
+  bind("#inv-disc",e=>{ editInv.discount=e.target.value; repaintTotals(); });
+  bind("#inv-tax",e=>{ editInv.taxPct=e.target.value; repaintTotals(); });
+  app.querySelectorAll("[data-f]").forEach(inp=>inp.addEventListener("input",()=>{ editInv.items[+inp.dataset.i][inp.dataset.f]=inp.value; repaintTotals(); }));
+  app.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ editInv.items.splice(+b.dataset.del,1); if(!editInv.items.length) editInv.items.push({desc:"",qty:1,price:0}); paintInvoice(); }));
+  app.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{
+    const k=b.dataset.add;
+    if(k==="labor") editInv.items.push({desc:"Labor",qty:1,price:rate});
+    else if(k==="travel") editInv.items.push({desc:"Travel",qty:1,price:travel});
+    else if(k==="materials") editInv.items.push({desc:"Materials",qty:1,price:0});
+    else editInv.items.push({desc:"",qty:1,price:0});
+    paintInvoice();
+  }));
+  $("#inv-save").addEventListener("click",()=>{ persistInvoice(); alert("Invoice saved."); });
+  $("#inv-sent").addEventListener("click",markSent);
+  $("#inv-pdf").addEventListener("click",exportPDF);
+
+  function repaintTotals(){
+    const s=editInv.items.reduce((a,it)=>a+(Number(it.qty)||0)*(Number(it.price)||0),0);
+    const d=Number(editInv.discount)||0; const t=(s-d)*((Number(editInv.taxPct)||0)/100);
+    const g=$(".totals"); if(!g) return;
+    g.querySelectorAll(".kv .v")[0].textContent=money(s);
+    g.querySelector(".grand .v").textContent=money(s-d+t);
+    app.querySelectorAll(".itemrow .lt").forEach((el,i)=>{ const it=editInv.items[i]; if(it) el.textContent=money((Number(it.qty)||0)*(Number(it.price)||0)); });
+  }
+}
+function persistInvoice(){
+  const st=store.get(); const idx=st.invoices.findIndex(x=>x.id===editInv.id);
+  if(idx>=0) st.invoices[idx]=editInv; else st.invoices.push(editInv);
+  if(editInv.reportId){ const r=st.reports.find(x=>x.id===editInv.reportId); if(r) r.invoiceId=editInv.id; }
+  store.set(st);
+}
+function markSent(){
+  editInv.status="sent"; persistInvoice();
+  if(editInv.reportId){ const st=store.get(); const r=st.reports.find(x=>x.id===editInv.reportId); if(r){ r.status="quoted"; store.set(st); } }
+  alert("Marked sent. Linked report set to “quoted.”"); navigate("#invoice/"+editInv.id);
+}
+function exportPDF(){
+  persistInvoice(); track("invoice_exported",{id:editInv.id,total:invTotal(editInv)});
+  const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"pt",format:"letter"});
+  const inv=editInv; const M=48; let y=58;
+  doc.setFontSize(20).setFont(undefined,"bold").text(BUSINESS.name,M,y);
+  doc.setFontSize(10).setFont(undefined,"normal");
+  doc.text(BUSINESS.person,M,y+16); doc.text(BUSINESS.address,M,y+30); doc.text(BUSINESS.email+" | "+BUSINESS.phone,M,y+44);
+  doc.setFontSize(22).setFont(undefined,"bold").text("INVOICE",564,y,{align:"right"});
+  doc.setFontSize(10).setFont(undefined,"normal");
+  doc.text("#"+inv.number,564,y+18,{align:"right"});
+  doc.text("Date: "+fmtDate(inv.date),564,y+32,{align:"right"});
+  doc.text("Due: "+fmtDate(inv.dueDate),564,y+46,{align:"right"});
+  y+=78; doc.setFont(undefined,"bold").text("Bill To:",M,y); doc.setFont(undefined,"normal");
+  let by=y+15; [inv.billTo.name,inv.billTo.address,inv.billTo.email].filter(Boolean).forEach(l=>{ doc.text(String(l),M,by); by+=14; });
+  y=Math.max(by,y+30)+8;
+  doc.setDrawColor(200); doc.line(M,y,564,y); y+=16;
+  doc.setFont(undefined,"bold"); doc.text("Description",M,y); doc.text("Hrs/Qty",386,y,{align:"right"}); doc.text("Rate",462,y,{align:"right"}); doc.text("Amount",564,y,{align:"right"});
+  doc.setFont(undefined,"normal"); y+=8; doc.line(M,y,564,y); y+=18;
+  let sub=0;
+  inv.items.forEach(it=>{ const lt=(Number(it.qty)||0)*(Number(it.price)||0); sub+=lt;
+    const lines=doc.splitTextToSize(it.desc||"",300); doc.text(lines,M,y);
+    doc.text(String(it.qty||0),386,y,{align:"right"}); doc.text(money(it.price),462,y,{align:"right"}); doc.text(money(lt),564,y,{align:"right"});
+    y+=Math.max(16,lines.length*14); if(y>700){ doc.addPage(); y=58; } });
+  y+=6; doc.line(360,y,564,y); y+=18;
+  const disc=Number(inv.discount)||0; const tax=(sub-disc)*((Number(inv.taxPct)||0)/100); const total=sub-disc+tax;
+  const rr=(l,v,b)=>{ doc.setFont(undefined,b?"bold":"normal"); doc.text(l,462,y,{align:"right"}); doc.text(v,564,y,{align:"right"}); y+=18; };
+  rr("Subtotal",money(sub)); if(disc) rr("Discount","-"+money(disc)); if(Number(inv.taxPct)) rr("Tax ("+inv.taxPct+"%)",money(tax));
+  doc.setFontSize(13); rr("Total Due",money(total),true); doc.setFontSize(10);
+  if(inv.notes){ y+=18; doc.setFont(undefined,"bold").text("Notes / Terms",M,y); doc.setFont(undefined,"normal"); doc.text(doc.splitTextToSize(inv.notes,516),M,y+15); }
+  doc.save("Invoice-"+inv.number+".pdf");
+}
+
+/* ============================================================================
+   PIN + BOOT
+   ========================================================================== */
+function requirePin(cb){
+  if(!USE_PIN||!PIN_CODE) return cb();
+  const slot=document.getElementById("modal-slot");
+  slot.innerHTML=`<div class="overlay"><div class="pin-box"><span class="logo" style="width:52px;height:52px;border-radius:13px;font-size:22px;margin:0 auto 10px">C<b>S</b></span>
+    <div style="font-weight:800;font-size:18px">Catino Services</div><div class="small muted" style="margin:4px 0 14px">Enter PIN</div>
+    <input class="inp" id="pin-in" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
+    <div id="pin-err" class="small" style="color:var(--emergency);height:18px;margin:6px 0"></div>
+    <button class="btn primary block" id="pin-go">Unlock</button></div></div>`;
+  const go=()=>{ if($("#pin-in").value===PIN_CODE){ slot.innerHTML=""; cb(); } else { $("#pin-err").textContent="Wrong PIN"; $("#pin-in").value=""; } };
+  $("#pin-go").addEventListener("click",go); $("#pin-in").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); }); $("#pin-in").focus();
+}
+
+function paintWorkProp(){
+  const sel=document.getElementById("workprop");
+  if(!PROPERTIES.length){ sel.parentElement.parentElement.style.display="none"; return; }
+  sel.innerHTML=PROPERTIES.map(p=>`<option value="${p.id}" ${currentProperty===p.id?'selected':''}>${esc(p.label)}</option>`).join("");
+  sel.addEventListener("change",()=>{ currentProperty=sel.value; });
+}
+document.getElementById("report-btn").addEventListener("click",()=>{ navigate("#home"); setTimeout(()=>{ const s=$("#portal-search"); if(s) s.focus(); },30); });
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>navigate(t.dataset.nav)));
+
+requirePin(()=>{
+  paintWorkProp();
+  const deep=getParam("portal");
+  if(deep && portalById(deep)) navigate("#funnel/"+deep); else route();
+});
+</script>
+</body>
+</html>
