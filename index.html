@@ -208,17 +208,14 @@ const USE_PIN  = false;
 /* Properties carry the real per-property hourly + travel rates (rate sheet, Jun 2026). */
 const PROPERTIES = [
   { id:"2nd-1051", label:"1051 2nd Ave S",        rate:100, travel:25 },
-  { id:"ham-640",  label:"640 Hamilton Ave",      rate:75,  travel:25 },
-  { id:"ham-642",  label:"642 Hamilton Ave",      rate:75,  travel:25 },
-  { id:"ham-646",  label:"646 Hamilton Ave",      rate:75,  travel:25 },
   { id:"thompson", label:"Thompson's Station",    rate:75,  travel:50 }
 ];
 
 /* Service areas map each vendor's coverage to the app's properties.
    Thompson's Station is grouped with the Franklin vendors (nearest coverage). */
 const SERVICE_AREAS = {
-  all:      ["2nd-1051","ham-640","ham-642","ham-646","thompson"],
-  weho:     ["2nd-1051","ham-640","ham-642","ham-646"],  // Wedgewood-Houston (Nashville)
+  all:      ["2nd-1051","thompson"],
+  weho:     ["2nd-1051"],  // Wedgewood-Houston (Nashville)
   franklin: ["thompson"]
 };
 
