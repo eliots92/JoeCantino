@@ -274,6 +274,12 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 const PIN_CODE = "4826";
 const USE_PIN  = false;
 
+/* Formspree — every saved report and sent invoice is POSTed here so there's a
+   durable, emailed record. Paste your form endpoint from formspree.io
+   (looks like https://formspree.io/f/abcdwxyz). Leave the XXXX placeholder and
+   nothing is sent — the app still works fully on-device. */
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/XXXXXXXX";
+
 /* Properties carry the real per-property hourly + travel rates (rate sheet, Jun 2026). */
 const PROPERTIES = [
   { id:"2nd-1051", label:"1051 2nd Ave S",        rate:100, travel:25 },
@@ -414,6 +420,45 @@ let AppState = { reports:[], invoices:[] };
 const store = { get(){ return AppState; }, set(n){ AppState = n; } };
 
 function track(event, payload){ try{ (window.__tracklog=window.__tracklog||[]).push({event,payload,t:Date.now()}); }catch(e){} }
+
+/* Formspree: fire-and-forget POST. Never blocks the UI; failures are swallowed
+   so the app keeps working offline / if the endpoint isn't set yet. */
+function formspreeEnabled(){ return FORMSPREE_ENDPOINT && !/XXXX/.test(FORMSPREE_ENDPOINT); }
+function sendToFormspree(payload){
+  if(!formspreeEnabled()) return;
+  try{
+    fetch(FORMSPREE_ENDPOINT, { method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify(payload) }).catch(()=>{});
+  }catch(e){}
+}
+function reportPayload(r){
+  return {
+    _subject: `New report — ${r.portalName} @ ${propLabel(r.location.property)||"—"}`,
+    type:"report", id:r.id, createdAt:r.createdAt,
+    category:(groupById(r.category)||{}).name||r.category, issue:r.portalName,
+    urgency:r.urgency, hazard:!!r.hazard, unitUnusable:!!r.habitabilityImpact,
+    flags:(r.flags||[]).join(", "),
+    property:propLabel(r.location.property), unitArea:r.location.unitArea||"",
+    summary:r.autoSummary, details:(r.answers||[]).map(a=>`${a.q}: ${a.a}`).join(" | "),
+    note:r.description||"", photoCount:(r.photos||[]).length,
+    contactName:(r.affectedParty||{}).name||"", contactPhone:(r.affectedParty||{}).phone||"",
+    contactEmail:(r.affectedParty||{}).email||"", status:r.status
+  };
+}
+function invoicePayload(inv){
+  return {
+    _subject: `Invoice #${inv.number} — ${(inv.billTo||{}).name||""} — ${money(invTotal(inv))}`,
+    type:"invoice", id:inv.id, number:inv.number, status:inv.status,
+    date:inv.date, dueDate:inv.dueDate, reportId:inv.reportId||"",
+    property:propLabel(inv.propertyId), billToName:(inv.billTo||{}).name||"",
+    billToEmail:(inv.billTo||{}).email||"",
+    lineItems:(inv.items||[]).map(it=>`${it.desc} — ${it.qty} × ${money(it.price)}`).join(" | "),
+    subtotal:(inv.items||[]).reduce((s,it)=>s+(Number(it.qty)||0)*(Number(it.price)||0),0),
+    discount:Number(inv.discount)||0, taxPct:Number(inv.taxPct)||0, total:invTotal(inv),
+    notes:inv.notes||""
+  };
+}
 
 /* Helpers */
 const $ = (s,r=document)=>r.querySelector(s);
@@ -804,6 +849,7 @@ function saveReport(){
   const r=draftReport(); r.id=uid("r"); r.autoSummary=buildAutoSummary(r,F.portal);
   const st=store.get(); st.reports.push(r); store.set(st);
   track("report_saved",{id:r.id,portal:r.portal,urgency:r.urgency,hazard:r.hazard,photos:r.photos.length});
+  sendToFormspree(reportPayload(r));
   F=null; celebrateSave(()=>navigate("#report/"+r.id));
 }
 const CELEB=[
@@ -1091,6 +1137,7 @@ function persistInvoice(){
 function markSent(){
   editInv.status="sent"; persistInvoice();
   if(editInv.reportId){ const st=store.get(); const r=st.reports.find(x=>x.id===editInv.reportId); if(r){ r.status="quoted"; store.set(st); } }
+  sendToFormspree(invoicePayload(editInv));
   alert("Marked sent. Linked report set to “quoted.”"); navigate("#invoice/"+editInv.id);
 }
 function exportPDF(){
