@@ -347,13 +347,15 @@ const VENDORS = [
 ];
 
 const BUSINESS = {
-  name:"My Portal",
+  /* The invoice is a real document Joe hands to the owner, so it carries the
+     business identity; the app chrome stays branded "My Portal". */
+  name:"Catino Services",
   person:"",
   address:"4716 Tangelwood Drive, Nashville, TN 37216",
   phone:"617-633-8949",
   email:"j1catino@outlook.com",
-  payableTo:"My Portal",
-  defaultNotes:"Payment due within 15 days (Net-15). Make payable to My Portal. Preferred: ACH / Direct Deposit or Check.",
+  payableTo:"Catino Services",
+  defaultNotes:"Payment due within 15 days (Net-15). Make payable to Catino Services. Preferred: ACH / Direct Deposit or Check.",
   defaultTaxPct:0,
   invoiceStart:204            // last real invoice was #203
 };
@@ -1109,7 +1111,7 @@ function paintInvoice(){
   const rate = pr?pr.rate:75, travel = pr?pr.travel:0;
 
   let html=`<div class="sec"><a class="linkbtn" href="#invoices">‹ Invoices</a></div>
-  <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">M<b>P</b></span>
+  <div class="card"><div class="row" style="align-items:center"><span class="logo" style="width:44px;height:44px;font-size:18px;box-shadow:0 0 0 1px var(--line)">C<b>S</b></span>
     <div style="flex:1"><div style="font-weight:800">${esc(BUSINESS.name)}</div><div class="small muted">${esc([BUSINESS.person,BUSINESS.phone].filter(Boolean).join(" · "))}</div><div class="small muted">${esc(BUSINESS.email)}</div></div></div>
     <div class="itemrow" style="grid-template-columns:1fr 1fr;margin-top:12px">
       <div><label class="field" style="margin-top:0">Invoice #</label><input class="inp" id="inv-num" value="${esc(inv.number)}"></div>
