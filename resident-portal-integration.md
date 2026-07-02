@@ -1,12 +1,13 @@
 # Resident Portal → Maintenance Reports integration
 
 The resident-facing portal (built on a separate website) connects to this system by
-POSTing maintenance requests to the **same Formspree form** the field app uses. Both
-sources then land in one inbox/dashboard, distinguishable by the `source` field.
+POSTing maintenance requests to a **dedicated Formspree form**, keeping resident
+requests in their own inbox/notification stream alongside the field app's forms.
 
-- **Endpoint:** `https://formspree.io/f/mjgqaald` (Maintenance Reports)
-- **Field app submissions:** `source: "field-app"`
-- **Resident submissions:** `source: "resident-portal"`
+- **Resident Requests endpoint:** `https://formspree.io/f/mzdlkrrn` ← the resident site POSTs here
+- Field app reports → `mjgqaald` (`source: "field-app"`)
+- Field app invoices → `mlgyppve`
+- Resident submissions are tagged `source: "resident-portal"`
 
 ## Field contract
 
@@ -82,7 +83,7 @@ document.getElementById("maint-form").addEventListener("submit", async (e) => {
   [...form.elements.photos.files].forEach((f, i) => fd.append("photo" + (i + 1), f));
   status.textContent = "Sending…";
   try {
-    const res = await fetch("https://formspree.io/f/mjgqaald", {
+    const res = await fetch("https://formspree.io/f/mzdlkrrn", {
       method: "POST", headers: { "Accept": "application/json" }, body: fd
     });
     if (!res.ok) throw new Error();
@@ -98,7 +99,5 @@ document.getElementById("maint-form").addEventListener("submit", async (e) => {
 ## Notes
 
 - Formspree accepts cross-origin AJAX submissions, so this works from any domain.
-- If resident volume grows, consider a third dedicated form (e.g. "Resident Requests")
-  so counts and notifications stay separate — the only change is the endpoint URL here.
 - Photo uploads count against the Formspree plan's file limits; consider downscaling
   client-side if residents send full-res phone photos (the field app does this).
