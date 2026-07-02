@@ -228,14 +228,8 @@ button,a,.tile,.opt,.sev,.cat-tile,.prop-btn{-webkit-tap-highlight-color:transpa
 @keyframes checkPop{0%{transform:scale(0) rotate(-25deg)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(47,133,90,.45)}100%{box-shadow:0 0 0 24px rgba(47,133,90,0)}}
 @keyframes riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
-.confetti i{position:absolute;top:46%;left:50%;width:9px;height:9px;border-radius:2px;opacity:0;
-  animation:confettiBurst .95s ease-out forwards}
-@keyframes confettiBurst{0%{opacity:1;transform:translate(0,0) rotate(0) scale(1)}
-  100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.6)}}
 @media (prefers-reduced-motion:reduce){
   .celeb-card,.celeb-check,.celeb-title,.celeb-sub{animation:none!important}
-  .confetti{display:none}
 }
 </style>
 </head>
@@ -459,7 +453,7 @@ function sendReport(r){
 function reportPayload(r){
   return {
     _subject: `New report — ${r.portalName} @ ${propLabel(r.location.property)||"—"}`,
-    type:"report", id:r.id, createdAt:r.createdAt,
+    type:"report", source:"field-app", id:r.id, createdAt:r.createdAt,
     category:(groupById(r.category)||{}).name||r.category, issue:r.portalName,
     urgency:r.urgency, hazard:!!r.hazard, unitUnusable:!!r.habitabilityImpact,
     flags:(r.flags||[]).join(", "),
@@ -473,7 +467,7 @@ function reportPayload(r){
 function invoicePayload(inv){
   return {
     _subject: `Invoice #${inv.number} — ${(inv.billTo||{}).name||""} — ${money(invTotal(inv))}`,
-    type:"invoice", id:inv.id, number:inv.number, status:inv.status,
+    type:"invoice", source:"field-app", id:inv.id, number:inv.number, status:inv.status,
     date:inv.date, dueDate:inv.dueDate, reportId:inv.reportId||"",
     property:propLabel(inv.propertyId), billToName:(inv.billTo||{}).name||"",
     billToEmail:(inv.billTo||{}).email||"",
@@ -538,9 +532,8 @@ function route(){
 function renderWelcome(){
   homeCategory="";
   let html=`<div class="hero">
-      <h1>Hi there 👋</h1>
-      <div class="q2">What's going on today?</div>
-      <div class="small muted sub">Pick the kind of issue — we'll ask where next.</div>
+      <h1>New report</h1>
+      <div class="q2">What's the issue?</div>
     </div>
     <div class="grid" style="margin-top:16px">`;
   GROUPS.forEach(g=>{
@@ -562,8 +555,7 @@ function renderWhere(catId){
       <div class="row" style="align-items:center;gap:11px">
         <span class="cat-ic" style="--cat:${g.color};width:40px;height:40px;font-size:21px">${g.icon}</span>
         <h1 style="font-size:21px">${esc(g.name)}</h1></div>
-      <div class="q2" style="margin-top:14px">Where is this happening?</div>
-      <div class="small muted sub">Tap the property.</div>
+      <div class="q2" style="margin-top:14px">Location</div>
     </div>
     <div class="opts" style="margin-top:14px">`;
   PROPERTIES.forEach(p=>{
@@ -591,8 +583,7 @@ function renderHome(){
   const q=homeQuery.trim().toLowerCase();
   const match=p=>!q||p.name.toLowerCase().includes(q)||groupById(p.group).name.toLowerCase().includes(q);
 
-  let html=`<input class="search" id="portal-search" placeholder="Search — leak, door, roof…" value="${esc(homeQuery)}" autocomplete="off">
-    <div class="small muted" style="margin:0 2px 6px">Tap what happened. One tap per question — most reports take 20 seconds.</div>`;
+  let html=`<input class="search" id="portal-search" placeholder="Search — leak, door, roof…" value="${esc(homeQuery)}" autocomplete="off">`;
 
   if(homeCategory){
     const cg=groupById(homeCategory);
@@ -740,7 +731,7 @@ function renderStepBody(step){
           <label class="photo-btn">📷<span>Add</span><input type="file" accept="image/*" capture="environment" multiple id="photo-input" hidden></label>
         </div>
         <label class="field">Note <span class="muted">(optional)</span></label>
-        <textarea class="inp" id="desc" placeholder="Anything worth saying — what you see, what you did.">${esc(c2.description)}</textarea>
+        <textarea class="inp" id="desc" placeholder="Condition found, work done, parts needed.">${esc(c2.description)}</textarea>
         <label class="field">Is the unit unusable right now?</label>
         <div class="toggle" id="habit">
           <button data-h="no" class="${c2.habitability?'':'on'}">No, still usable</button>
@@ -758,7 +749,7 @@ function renderStepBody(step){
         <div style="font-weight:800;font-size:16px;line-height:1.35;margin-bottom:8px">${esc(pv)}</div>
         <div class="small">${c.hazard?'<span class="hazflag">HAZARD</span>':''}${c.habitability?'<span class="flagpill">UNUSABLE</span>':''}${c.flags.map(f=>`<span class="flagpill">${esc(f.replace(/_/g,' '))}</span>`).join("")}</div>
         <div class="small muted" style="margin-top:8px">${esc(propLabel(c.location.property))} ${esc(c.location.unitArea)} · ${c.photos.length} photo(s)</div>
-      </div><div class="small muted">Tap <b>Save report</b> — you can build an invoice from it after.</div>`;
+      </div>`;
     }
   }
   return "";
@@ -900,28 +891,20 @@ function saveReport(){
   F=null; celebrateSave(()=>navigate("#report/"+r.id));
 }
 const CELEB=[
-  {t:"Nice work! 🎉",       s:"Report saved — you're on top of it."},
-  {t:"Boom — logged it! 💪", s:"That's one less thing to worry about."},
-  {t:"You're crushing it! 🙌", s:"Saved and ready to go."},
-  {t:"Done and dusted! ✨",  s:"Thorough as always — saved."},
-  {t:"Great catch! 👏",      s:"Logged. On to the next one."}
+  {t:"Report saved",  s:"Nice work — it's logged."},
+  {t:"Report saved",  s:"Logged. On to the next one."},
+  {t:"Report saved",  s:"Documented and on record."}
 ];
 function celebrateSave(done){
   const slot=document.getElementById("modal-slot");
   const m=CELEB[Math.floor(Math.random()*CELEB.length)];
-  const colors=["#8FB99F","#c0392b","#d97706","#2f6f9f","#2f855a","#16333D"];
-  let conf="";
-  for(let i=0;i<18;i++){
-    const dx=(Math.random()*2-1)*175, dy=(Math.random()*2-1)*150, rot=(Math.random()*720-360)|0;
-    conf+=`<i style="--dx:${dx|0}px;--dy:${dy|0}px;--rot:${rot}deg;background:${colors[i%colors.length]};animation-delay:${(Math.random()*.12).toFixed(2)}s"></i>`;
-  }
-  slot.innerHTML=`<div class="overlay celebrate" id="celeb"><div class="confetti">${conf}</div>
+  slot.innerHTML=`<div class="overlay celebrate" id="celeb">
     <div class="celeb-card"><div class="celeb-check">✓</div>
     <div class="celeb-title">${esc(m.t)}</div><div class="celeb-sub">${esc(m.s)}</div></div></div>`;
   let closed=false;
   const close=()=>{ if(closed) return; closed=true; slot.innerHTML=""; if(done) done(); };
   const ov=document.getElementById("celeb"); if(ov) ov.addEventListener("click",close);
-  setTimeout(close,1900);
+  setTimeout(close,1200);
 }
 
 /* ============================================================================
